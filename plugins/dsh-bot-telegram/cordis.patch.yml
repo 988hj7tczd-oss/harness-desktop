@@ -1,0 +1,7 @@
+# dsh-bot-telegram bundle patch：把 Telegram adapter 插入 web profile。
+- insert:
+    - id: dsh-bot-telegram
+      name: dsh-bot-telegram
+      config:
+        apiKeyEnv: TELEGRAM_BOT_TOKEN
+        pollIntervalMs: 1000

@@ -1,0 +1,58 @@
+appId: com.harness.desktop
+productName: harness-desktop
+copyright: Copyright © 2026 harness-desktop
+
+directories:
+  output: out
+  buildResources: build
+
+files:
+  - dist/**/*
+  - dist-electron/**/*
+  - plugins/**/*
+  - build/icon.png
+  - package.json
+
+# 不使用 asar：dsh profile 初始化会为安装包内的依赖创建符号链接，
+# 需要真实文件路径（asar 内的符号链接目标不可靠）。
+asar: false
+
+npmRebuild: false
+
+# 复制完整 node_modules（见 scripts/after-pack.mjs）
+afterPack: scripts/after-pack.mjs
+
+# 原生模块（node-pty / koffi）解包，保证 ELECTRON_RUN_AS_NODE 下可加载
+asarUnpack:
+  - node_modules/.pnpm/node-pty*/**/*
+  - node_modules/.pnpm/koffi*/**/*
+
+mac:
+  category: public.app-category.developer-tools
+  icon: build/icon.png
+  target:
+    - target: dmg
+      arch:
+        - arm64
+        - x64
+  # 开发阶段不签名
+  identity: null
+
+win:
+  icon: build/icon.png
+  target:
+    - target: nsis
+      arch:
+        - x64
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  perMachine: false
+  shortcutName: harness-desktop
+
+dmg:
+  title: harness-desktop
+
+electronDownload:
+  mirror: https://npmmirror.com/mirrors/electron/

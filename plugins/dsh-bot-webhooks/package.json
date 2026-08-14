@@ -1,0 +1,16 @@
+{
+  "name": "dsh-bot-webhooks",
+  "version": "0.1.0",
+  "description": "dsh-bot-webhooks：通用入站 Webhook 消息通道 adapter",
+  "type": "module",
+  "main": "index.js",
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "cordis.patch.yml"
+    }
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "^3.0.0"
+  }
+}

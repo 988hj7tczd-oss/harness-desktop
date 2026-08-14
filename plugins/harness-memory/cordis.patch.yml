@@ -1,0 +1,10 @@
+# harness-memory bundle patch：把记忆插件插入 web profile。
+#
+# 作为 dsh.bundle.patch 被 dsh 加载器消费。insert 引用本包（harness-memory），
+# 加载器会从 profile 的 node_modules 解析它并加载为 Cordis 插件。
+- insert:
+    - id: dsh-memory
+      name: harness-memory
+      config:
+        maxMemories: 50
+        sectionOrder: 150

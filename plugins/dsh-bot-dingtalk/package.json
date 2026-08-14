@@ -1,0 +1,16 @@
+{
+  "name": "dsh-bot-dingtalk",
+  "version": "0.1.0",
+  "description": "dsh-bot-dingtalk：钉钉机器人 adapter",
+  "type": "module",
+  "main": "index.js",
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "cordis.patch.yml"
+    }
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "^3.0.0"
+  }
+}

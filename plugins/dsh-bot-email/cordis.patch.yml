@@ -1,0 +1,11 @@
+# dsh-bot-email bundle patch：把 Email adapter 插入 web profile。
+- insert:
+    - id: dsh-bot-email
+      name: dsh-bot-email
+      config:
+        imapHostEnv: EMAIL_IMAP_HOST
+        imapPortEnv: EMAIL_IMAP_PORT
+        emailEnv: EMAIL_ADDRESS
+        passwordEnv: EMAIL_PASSWORD
+        smtpHostEnv: EMAIL_SMTP_HOST
+        smtpPortEnv: EMAIL_SMTP_PORT

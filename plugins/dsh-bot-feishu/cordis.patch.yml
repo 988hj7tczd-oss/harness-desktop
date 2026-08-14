@@ -1,0 +1,7 @@
+# dsh-bot-feishu bundle patch：把飞书 adapter 插入 web profile。
+- insert:
+    - id: dsh-bot-feishu
+      name: dsh-bot-feishu
+      config:
+        appIdEnv: FEISHU_APP_ID
+        appSecretEnv: FEISHU_APP_SECRET

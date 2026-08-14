@@ -1,0 +1,14 @@
+packages:
+  - .
+# hoisted 布局（无符号链接、扁平 node_modules）：electron-builder 打包后
+# 依赖解析正常，且 dsh profile 初始化依赖「安装包内依赖闭包」的解析。
+nodeLinker: hoisted
+allowBuilds:
+  '@deepseek-ai/dsh-subprocess-local': true
+  '@google/genai': true
+  esbuild: true
+  koffi: true
+  node-pty: true
+  protobufjs: true
+  electron: true
+minimumReleaseAge: 0

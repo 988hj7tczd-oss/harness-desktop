@@ -1,0 +1,16 @@
+{
+  "name": "dsh-bot-slack",
+  "version": "0.1.0",
+  "description": "dsh-bot-slack：Slack Bot 消息通道 adapter（Socket Mode 免公网）",
+  "type": "module",
+  "main": "index.js",
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "cordis.patch.yml"
+    }
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "^3.0.0"
+  }
+}

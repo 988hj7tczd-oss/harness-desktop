@@ -1,0 +1,7 @@
+# dsh-bot-dingtalk bundle patch：把钉钉 adapter 插入 web profile。
+- insert:
+    - id: dsh-bot-dingtalk
+      name: dsh-bot-dingtalk
+      config:
+        webhookEnv: DINGTALK_BOT_WEBHOOK
+        secretEnv: DINGTALK_BOT_SECRET
