@@ -22,6 +22,8 @@
 **npm 一键安装**（自动下载对应平台安装包）：
 ```bash
 npm install -g harness-desktop
+# npm 新版默认拦截安装脚本，如需自动下载安装包加参数：
+npm install -g --allow-scripts=harness-desktop harness-desktop
 harness-desktop        # 启动安装
 ```
 
