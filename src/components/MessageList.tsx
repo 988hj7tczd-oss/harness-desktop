@@ -6,12 +6,14 @@ interface Props {
   messages: ChatMessage[]
   running: boolean
   loading: boolean
+  onEdit?: (messageId: string, newText: string) => void
+  onRegenerate?: (messageId: string) => void
 }
 
 const STEP = 200
 const HARD_CAP = 500
 
-export default function MessageList({ messages, running, loading }: Props) {
+export default function MessageList({ messages, running, loading, onEdit, onRegenerate }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null)
   // 可视窗口起点：默认只看最近一批，超长会话防止 DOM 爆炸
   const [windowStart, setWindowStart] = useState(0)
@@ -59,7 +61,7 @@ export default function MessageList({ messages, running, loading }: Props) {
         </button>
       )}
       {visible.map((m) => (
-        <MessageBubble key={m.id} message={m} />
+        <MessageBubble key={m.id} message={m} onEdit={onEdit} onRegenerate={onRegenerate} />
       ))}
       {running && (
         <div className="typing-indicator">

@@ -14,7 +14,7 @@ const TICK_MS = 10_000
 function nextDaily(hhmm: string, now: number): number {
   const [h, m] = hhmm.split(':').map(Number)
   const d = new Date(now)
-  d.setHours(h || 9, m || 0, 0, 0)
+  d.setHours(h ?? 9, m ?? 0, 0, 0)
   if (d.getTime() <= now) d.setDate(d.getDate() + 1)
   return d.getTime()
 }
@@ -23,7 +23,7 @@ function nextDaily(hhmm: string, now: number): number {
 function nextWeekly(day: number, hhmm: string, now: number): number {
   const [h, m] = hhmm.split(':').map(Number)
   const d = new Date(now)
-  d.setHours(h || 9, m || 0, 0, 0)
+  d.setHours(h ?? 9, m ?? 0, 0, 0)
   while (d.getDay() !== ((day % 7) + 7) % 7 || d.getTime() <= now) {
     d.setDate(d.getDate() + 1)
   }
@@ -84,8 +84,10 @@ export class ReminderManager {
     const reminders = this.list()
     const due = reminders.filter((r) => r.nextAt <= now)
     if (due.length === 0) return
+    const firedOk: string[] = []
     for (const r of due) {
-      await this.fire(r)
+      const ok = await this.fire(r)
+      if (ok) firedOk.push(r.id)
     }
     const remaining: Reminder[] = []
     for (const r of reminders) {
@@ -97,23 +99,36 @@ export class ReminderManager {
         remaining.push({ ...r, nextAt: nextDaily(r.dailyTime ?? '09:00', now) })
       } else if (r.kind === 'weekly') {
         remaining.push({ ...r, nextAt: nextWeekly(r.weeklyDay ?? 0, r.dailyTime ?? '09:00', now) })
+      } else if (!firedOk.includes(r.id)) {
+        // 一次性提醒（after/at）触发失败：顺延重试，不丢
+        const retries = (r.retries ?? 0) + 1
+        if (retries <= MAX_RETRIES) {
+          remaining.push({ ...r, nextAt: now + RETRY_DELAY_MS, retries })
+        } else {
+          console.warn(`[harness-desktop] 提醒 ${r.id} 重试 ${MAX_RETRIES} 次仍失败，丢弃`)
+        }
       }
+      // 一次性提醒成功（firedOk）→ 不再保留
     }
     this.persist(remaining)
   }
 
-  private async fire(r: Reminder) {
+  /** 触发提醒；返回是否成功（成功才从一次性提醒列表移除）。 */
+  private async fire(r: Reminder): Promise<boolean> {
     const adapter = this.getAdapter()
-    if (!adapter) return
+    if (!adapter) return false
     try {
       const sessions = await adapter.listSessions()
       const target = sessions.find((s) => s.sessionId === r.sessionId) ?? sessions[0]
-      if (target) {
-        await adapter.sendMessage(target.sessionId, `[定时提醒] ${r.text}`)
-        this.onFired?.(r, target.sessionId)
-      }
+      if (!target) return false
+      await adapter.sendMessage(target.sessionId, `[定时提醒] ${r.text}`)
+      this.onFired?.(r, target.sessionId)
+      return true
     } catch {
-      // 会话不可用则跳过，下次 tick 重试（不再安排）
+      return false
     }
   }
 }
+
+const RETRY_DELAY_MS = 30_000
+const MAX_RETRIES = 10

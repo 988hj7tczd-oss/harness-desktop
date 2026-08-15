@@ -1,6 +1,5 @@
 /**
- * electron/profile-setup.ts —— 确保 dsh profile 已初始化并安装本地插件
- * （harness-memory 记忆 + dsh-bot-gateway 消息网关 + dsh-bot-telegram）。
+ * electron/profile-setup.ts —— 确保 dsh profile 已初始化并安装本地插件（harness-memory 记忆）。
  *
  * 首次启动：dsh 引擎会初始化 profile（下载依赖，耗时）。本模块负责在
  * profile 就绪后把本地插件安装进去：
@@ -15,14 +14,6 @@ import { join } from 'node:path'
 /** 需要安装进 profile 的本地插件（dsh bundle 格式）。 */
 const BUNDLE_PLUGINS = [
   'harness-memory',
-  'dsh-bot-gateway',
-  'dsh-bot-telegram',
-  'dsh-bot-wechat',
-  'dsh-bot-feishu',
-  'dsh-bot-dingtalk',
-  'dsh-bot-email',
-  'dsh-bot-webhooks',
-  'dsh-bot-slack',
 ]
 
 export type ProfileSetupResult =

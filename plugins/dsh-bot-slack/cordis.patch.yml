@@ -1,7 +1,0 @@
-# dsh-bot-slack bundle patch：把 Slack adapter 插入 web profile。
-- insert:
-    - id: dsh-bot-slack
-      name: dsh-bot-slack
-      config:
-        botTokenEnv: SLACK_BOT_TOKEN
-        appTokenEnv: SLACK_APP_TOKEN

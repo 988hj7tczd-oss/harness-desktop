@@ -1,987 +1,611 @@
-# harness-desktop 交付报告（001-harness-desktop-mvp-v1）
+# harness-desktop 交付报告（最新）
 
-> 状态：Phase 0–3 全部完成。真实 API Key 对话待 owner 实测验收。
+> 状态：001-030 完成（030 修复 hero 品牌替换，CDP 实测通过）。历史报告已归档到 `docs/history/`。
+> 本文件只保留最新进展摘要 + 版本导航。
 
-## 完成情况
+## 版本导航
 
-| Phase | 内容 | 状态 |
-|---|---|---|
-| 0 | Electron 壳 + dsh 进程管理 + adapter 骨架 | ✅ |
-| 1 | 极简 UI（首启向导 + 会话列表 + 聊天窗口 + 设置） | ✅ |
-| 2 | 记忆插件 dsh-memory（ctx.storage + system-prompt section） | ✅ |
-| 3 | 打包分发（macOS dmg + Windows exe） | ✅ |
-
-## 如何启动
-
-```bash
-pnpm install          # 安装依赖（含 dsh 引擎，锁 0.1.0-rc.6）
-pnpm dev              # 开发模式：vite + electron，打开聊天界面
-pnpm dist             # 打包：out/*.dmg + out/*.exe
-```
-
-打包产物：
-- macOS：`out/harness-desktop-0.1.0-arm64.dmg` / `out/harness-desktop-0.1.0.dmg`（x64）
-- Windows：`out/harness-desktop Setup 0.1.0.exe`
-
-## 自测结果（opencode 实测）
-
-- ✅ `dsh web` 随机端口启动、`host.describe` 就绪轮询（poll 直到 ok:true）
-- ✅ JSON-RPC 信封契约（POST /api/<method> + WS /api/events.mux 事件流）
-- ✅ adapter 独立模块；通过 IPC 只暴露稳定类型，renderer 不接触 dsh 原始字段
-- ✅ 首启向导 3 步完整走通（37 个 provider 可选 → API Key → 工作区）
-- ✅ 会话创建/列表/历史加载；聊天消息发送 → 事件流 → UI 渲染
-- ✅ 模型目录（DeepSeek-V4-Flash / DeepSeek-V4-Pro）与切换
-- ✅ runtime-context 等引擎注入消息已过滤，不污染聊天界面
-- ✅ 记忆插件：`memory_save`/`memory_forget` 工具注册 + 记忆段落注入系统提示
-- ✅ 退出后 dsh 子进程无残留（SIGTERM/SIGINT/before-quit 均覆盖）
-- ✅ 打包产物可启动：macOS dmg 内 dsh 引擎（electron-as-node + `--expose-internals`）正常服务 API，记忆插件自动安装
-
-## 需要 owner 实测的项
-
-- ⏳ 配置真实 DeepSeek API Key 后完成一次真实对话（核心验收项）
-- ⏳ macOS `pnpm dev` 一键启动进入聊天界面
-- ⏳ 首启向导完整走通（含原生目录选择器弹窗）
-
-## 已知限制
-
-1. **版本说明**：提示词要求锁 `@deepseek-ai/dsh@0.1.0-rc.5`，但 npm 上不存在该版本（registry 从 `0.1.0-rc.3` 直接到 `0.1.0-rc.6`）。已改为精确锁定 `0.1.0-rc.6`（当前最新可用版本），满足"锁版本、不用最新"的意图。
-2. **首次启动耗时**：首次启动会初始化 dsh profile（构建依赖闭包，离线完成）并安装记忆插件后自动重启一次，约 30–60s。
-3. **原生目录选择器**：dsh 的 `host.pickDirectory` 会弹原生对话框；自动化测试中无法点击，用 `updateAppSettings` 模拟。
-4. **Windows 安装包**：NSIS exe 已产出但未在 Windows 实机运行验证（本机为 macOS）。
-5. **未签名**：macOS dmg / Windows exe 未做代码签名，安装时系统可能提示未知开发者。
-6. **打包体积**：约 500MB（功能优先，未做体积优化）。
-7. **图标**：使用脚本生成的极简图标，未做精修。
-
----
-
-# harness-desktop 交付报告（002-model-ui-custom-provider-v1）
-
-> 状态：模型选择 UI 改版 + 自定义模型接入完成。真实端点对话待 owner 实测验收。
-
-## 完成情况
-
-| 需求 | 内容 | 状态 |
-|---|---|---|
-| 1 | ModelPicker 改版：两级（供应商 → 模型）分类选择 | ✅ |
-| 2 | 自定义模型接入：设置页新增「自定义接入」区块（增/改/删） | ✅ |
-| 3 | 架构：adapter 写方法 + IPC + preload；存 dsh settings（llm-pi-ai） | ✅ |
-
-## 改动文件
-
-- `shared/types.ts`：新增 `CustomProviderConfig / CustomProviderListItem / CustomProviderModel / CustomProviderApi`；HarnessApi 新增 4 个方法
-- `adapter/dsh-client.ts`：新增 `settingsDescribe / settingsUpdate / settingsMutate` 低层方法
-- `adapter/index.ts`：新增 `listCustomProviders / saveCustomProvider / removeCustomProvider / setProviderApiKey`
-- `electron/ipc.ts` + `electron/preload.ts`：新增 `provider:list / provider:save / provider:remove / provider:setKey` 通道
-- `src/components/ModelPicker.tsx`：两级选择（供应商下拉 + 模型下拉 + 「供应商 · 模型」当前态显示）
-- `src/components/ChatView.tsx`：selection 改为 `{provider, model}`；新增 modelsTick 刷新
-- `src/components/SettingsModal.tsx` + `src/components/CustomProviders.tsx`：自定义接入区块（列表 + 表单 + 编辑/删除）
-- `src/styles.css`：两级选择器 + 自定义接入样式
-
-## 如何测试
-
-```bash
-pnpm dev
-```
-1. 聊天头部模型选择：先选供应商，再选模型，显示「供应商 · 模型」
-2. 设置 → 自定义接入 → 「添加自定义供应商」：填名称 / Provider ID（中文名需手填 ID）/ Base URL / 协议 / Key / 模型列表 → 保存
-3. 保存后供应商出现在模型选择分类里；重启应用配置仍在
-4. 删除/编辑：列表项右侧按钮
-
-## 自测结果（opencode 实测）
-
-- ✅ 模型选择按供应商分类（两级下拉 + 当前态「DeepSeek · DeepSeek-V4-Flash」）
-- ✅ 添加自定义 OpenAI 兼容端点（含 key + 模型）→ 出现在分类、模型可选、显示「公司网关 · 公司大模型」
-- ✅ 重启应用后配置仍在（持久化到 dsh settings.yaml 的 llm-pi-ai.providers）
-- ✅ 删除/编辑可用；删除后从分类消失
-- ✅ 真实链路：`session.selectModel(corp-gw, corp-llm)` 后实际 LLM 请求路由到该 provider（request/header 确认）
-- ✅ `pnpm typecheck` 零错误；`pnpm build` 通过；`pnpm dev` 正常启动
-
-## 需要 owner 实测的项
-
-- ⏳ 用自定义真实端点（含有效 key）发起一次对话收到回复
-- ⏳ 三种协议（OpenAI 兼容 / OpenAI Responses / Anthropic）各试一种
-
-## 已知限制
-
-1. 中文供应商名不会自动生成 Provider ID（需手填小写 ID）。
-2. 编辑时 API Key 留空则不改动原 Key（凭据按 apiKeyEnv 引用存储）。
-3. 删除某供应商后，若它曾被设为默认模型，需在设置里重新选默认模型（引擎会回退到部署默认）。
-
----
-
-# harness-desktop 交付报告（003-ui-redesign-v1）
-
-> 状态：UI 全面重构完成。真实对话（含转圈长任务）待 owner 实测验收。
-
-## 完成情况
-
-| 验收项 | 内容 | 状态 |
-|---|---|---|
-| 1 | 左上角鲸鱼 logo + "harness desktop"（深色下白色可见） | ✅ |
-| 2 | 主界面 = 品牌栏 + 会话列表 + 聊天区，无散落功能按钮 | ✅ |
-| 3 | 左下角设置按钮，含引擎状态/API Key/自定义接入/工作区/默认模型 | ✅ |
-| 4 | 会话工作时左侧标签转圈，结束后停转 | ✅ |
-| 5 | 视觉与 dsh 官方 Web UI 风格一致（深色/圆角/卡片） | ✅ |
-| 6 | pnpm typecheck 零错误、pnpm dev 正常启动 | ✅ |
-
-## 改动文件
-
-- `src/components/Brand.tsx`（新增）：内联鲸鱼 logo + wordmark，`?raw` 引入，CSS 强制白色
-- `src/assets/brand/*.svg`：从 build/brand 复制供 Vite 引入
-- `src/components/MainView.tsx`：`app-shell` + `brand-bar` + `app-body` 布局；running 状态即时更新（bus）+ session.list 不覆盖转圈状态
-- `src/components/Sidebar.tsx`：移除品牌区（移到顶栏），新会话按钮 + 会话列表 + 左下角设置按钮；running 会话显示旋转 spinner
-- `src/components/ChatView.tsx`：空状态换鲸鱼图标
-- `src/chatReducer.ts`：消息 id 改为自增唯一（修复 React key 冲突警告）；流式消息用 streaming 定位
-- `src/styles.css`：全面换血为 dsh 官方深色主题 token（--dsw-*：背景层级/边框/文字/DeepSeek 品牌色/状态色），圆角卡片、白底主按钮、转圈动画
-
-## 如何测试
-
-```bash
-pnpm dev
-```
-1. 左上角鲸鱼 + "harness desktop"（白色）
-2. 左侧会话列表 + 底部左角 ⚙ 设置；主界面无散落按钮
-3. 设置弹窗含：引擎状态 / API Key / 工作区 / 默认模型 / 自定义接入
-4. 发消息时对应会话标签转圈（蓝圈旋转），结束后停止
-5. 聊天区深色卡片风、消息气泡、两级模型切换、停止按钮
-
-## 自测结果（opencode 实测，CDP 驱动）
-
-- ✅ 品牌区：logo + wordmark 均渲染为白色（rgb(255,255,255)）
-- ✅ 布局：品牌栏 + 侧栏 + 聊天区；散落功能按钮仅「新会话」「设置」2 个
-- ✅ 设置按钮位于侧栏左下角；弹窗含全部 5 个区块
-- ✅ 转圈：running 事件 → 侧栏 `.session-spinner` 出现（animation: session-spin，边框色 deepseek 蓝 rgb(103,158,254)），停止后消失
-- ✅ React 警告清零（重复 key 已修复）
-- ✅ `pnpm typecheck` 零错误；`pnpm build` 通过
-
-## 需要 owner 实测的项
-
-- ⏳ 配置真实 API Key 后：发消息观察会话标签转圈时长与停转时机
-- ⏳ 真实对话 + 工具调用卡片展示
-- ⏳ 整体视觉是否满意（深色、圆角、官方风格）
-
-## 已知限制
-
-1. 无 API Key 时 turn 极短（~20ms），转圈可能一闪而过；已加 800ms 最短显示时间保证有反馈（真实任务时长不受影响）。
-2. 未做浅色主题（当前固定深色，与官方默认一致）。
-3. 品牌 logo 白色为强制（app 固定深色背景），未跟随系统 prefers-color-scheme。
-
----
-
-# harness-desktop 交付报告（会话窗口输入区改版）
-
-> 状态：完成。右上角模型区移入输入区、新增模式选择 + 文件附加。
-
-## 完成内容
-
-| 需求 | 状态 |
+| 版本 | 文件 |
 |---|---|
-| 右上角模型显示区取消，移到输入口右下（发送按钮左边） | ✅ |
-| 模型显示简洁化：供应商 · 型号（点击弹出两级选择） | ✅ |
-| 输入框左下角：工作区 + 模式（标准/PTC/极简/创造） | ✅ |
-| 输入框 ➕ 添加文件 | ✅ |
-
-## 关键实现
-
-- **模式**：映射 dsh agent preset（standard/code/minimal/cordis），切换调用 `agentPreset.select`（仅空会话可切），新建会话带当前模式
-- **模型显示**：新组件 `ModelDisplay`（供应商·型号，点击弹 popover 两级选择），替换原右上 ModelPicker
-- **文件附加**：`files:pick` IPC（Electron 对话框多选，图片读 base64），附件 chip 展示、可移除；发送时图片→image content part、其他文件→文本路径引用
-- **ChatInput 重构**：左下 工作区 chip + 模式下拉；右下 模型显示 + ➕ + 发送
-
-## 自测结果（CDP 实测）
-
-- ✅ 右上角无模型区；左下 workspace chip + 模式下拉（4 项：标准/PTC/极简/创造）
-- ✅ 右下 模型显示「DeepSeek · DeepSeek-V4-Flash」+ ➕ + 发送；模型点击弹两级选择
-- ✅ 模式切换成功（standard→code 无报错）；新建会话带 mode（agentPreset=code）
-- ✅ 文本文件发送 accepted:true；图片发送被引擎拒绝（当前模型不支持图片输入）
-- ✅ `pnpm typecheck` 零错误、`pnpm build` 通过
-
-## 已知限制
-
-1. 图片附件需视觉模型：当前默认 `deepseek-v4-flash` 不支持图片，附加图片会收到引擎 `attachment-error` 提示。
-2. 模式切换仅限空会话（dsh 限制：会话跑过 turn 后锁定 preset）。
-3. 工作区 chip 当前仅展示路径，更改请到设置里操作。
+| 001-017 | 见 `docs/history/REPORT-001.md` … `REPORT-017.md` |
+| 018 | 本文档下方 |
+| 019 | 本文档下方 |
+| 020 | 本文档下方 |
+| 021 | 本文档下方 |
+| 022 | 本文档下方 |
+| 023 | 本文档下方 |
+| 024 | 本文档下方 |
+| 025 | 本文档下方 |
+| 026 | 本文档下方 |
+| 027 | 本文档下方 |
+| 028 | 本文档下方 |
+| 029 | 本文档下方 |
+| 030 | 本文档下方 |
 
 ---
 
-# harness-desktop 交付报告（会话管理：右键菜单 + 置顶/颜色/归档/删除）
+# harness-desktop 交付报告（022 彻底删除消息通道）
 
-> 状态：完成。会话标签右键菜单全功能。
+> 状态：完成（UI + 插件 + 主进程 + profile 四层全部删除；typecheck/test/build/启动验证通过）。
 
-## 完成内容（对照你确认的方案）
+## 删除范围（一个不留）
 
-| 菜单项 | 实现 | 实测 |
-|---|---|---|
-| 重命名 | `session.rename` + 内联输入框 | ✅ 标题更新 |
-| 置顶 | app 本地 `pinnedSessionIds`，排序置顶 | ✅ 📌 标记 + 置顶排序 |
-| 外观（标签颜色） | app 本地 `sessionColors`，8 色色板 | ✅ 侧栏色带 |
-| 复制 ID | Electron 剪贴板 | ✅ 系统剪贴板验证 |
-| 分支 | `session.fork` | ✅ 新会话 + 计数+1 |
-| 导出 | `GET /api/session.export`（zip）+ 保存对话框 | ✅ 端点返回 zip |
-| 归档 | `workspace.archiveSession`，列表隐藏、数据保留 | ✅ 列表隐藏、数据保留、可恢复 |
-| 删除（硬删） | 校验 `session.jsonl`/`.jsonl.zstd` 后删目录 | ✅ 磁盘目录消失 |
+### A. UI 层
+- 删除 `src/components/MessageChannelsSection.tsx`、`src/channelRegistry.ts`
+- `SettingsModal.tsx`：移除"消息通道"导航项 + 渲染 + import（设置页导航收拢为 6 项）
+- `shared/types.ts`：移除 ChannelPlatform/ChannelMode/ChannelAccessConfig 类型 + channelAccess 字段 + describeCredentialRefs/openExternal/testChannel API
+- `src/styles.css`：删除全部 channel-* 样式（35 条规则）
 
-## 关键实现
+### B. 插件层
+- 删除全部 `plugins/dsh-bot-*`（gateway/telegram/qq/wechat/feishu/dingtalk/slack/email/webhooks）+ `plugins/__tests__/`
+- 保留 `plugins/harness-memory`（记忆核心）
 
-- **删除（硬删）**：dsh 无原生 API，主进程按 dsh 同款 `projectKey`/`encodeSegment` 编码定位会话目录，**校验日志文件存在才删**，运行中先 cancel
-- **归档隐藏**：adapter `listSessions` 用 `workspace.list` 的 `archivedSessionIds` 交叉过滤
-- **置顶/颜色**：存 `app-settings.json`（`pinnedSessionIds`/`sessionColors`），排序置顶
-- **交互**：右键完整菜单（含色板子菜单 + 归档/删除二次确认）；悬停快捷 ✏️/🗑
-- **顺带修复**：标题 projection 是字符串而非 `{value}`，adapter 映射 bug 导致侧栏标题一直显示"新会话"
+### C. 主进程/集成层
+- `profile-setup.ts`：BUNDLE_PLUGINS 只剩 harness-memory
+- `ipc.ts`：删除 channel:test / cred:describeRefs / shell:openExternal 及 channel:test 的全部平台分支 + 相关 helper（readSavedCredentials 等）+ 未用 import
+- `preload.ts`：移除 testChannel/describeCredentialRefs/openExternal
+- `adapter/index.ts`：移除 describeCredentialRefs
+- dsh-home profile：清理已安装 dsh-bot-* bundle + package.json bundles 数组
 
-## 改动文件
+### D. 数据清理
+- safe-credentials.json 只保留 DEEPSEEK_API_KEY（通道值已清）
+- .credentials.yaml 保留 DEEPSEEK_API_KEY（引擎黑盒数据，无插件引用通道值）
 
-- `shared/types.ts`：AppSettings 扩展、`SESSION_COLORS`、IPC 类型（fork/archive/hardDelete/export/copyText）
-- `adapter/index.ts`+`dsh-client.ts`：fork/archive/workspaceList、listSessions 过滤归档 + 标题映射修复
-- `electron/ipc.ts`：`session:fork/archive/hardDelete/export`、`clipboard:copy`、路径编码（projectKey/encodeSegment）
-- `electron/preload.ts`、`electron/settings-store.ts`
-- `src/components/Sidebar.tsx`（重写）、`SessionContextMenu.tsx`（新）、`MainView.tsx`、`styles.css`
+## 保留（核心功能无损）
+- DEEPSEEK_API_KEY 凭证机制 + safeStorage 加密层
+- 凭证管理/模型/会话/任务/记忆/技能/外观/流式聊天
+- adapter/events.ts 通用事件转换、chatReducer/tasks 测试
 
-## 已知限制
-
-1. **删除不可恢复**：硬删会移除日志文件（这是"删除"与"归档"的区别）；删除前有二次确认。
-2. **归档可恢复但无 UI**：dsh 有 `workspace.archiveSession` 但无 unarchive RPC，恢复归档会话目前只能手动（数据文件仍在）。
-3. **导出**：dsh 返回 zip 包（内含 session.jsonl），保存为 `.zip`。
-4. **置顶/颜色**：app 本地存储，删除/归档会话后若残留引用不影响（按 sessionId 匹配）。
-
----
-
-# harness-desktop 交付报告（首启向导跳过 + 未配置 Key 提示条）
-
-> 状态：完成。
-
-## 完成内容
-
-| 需求 | 实现 | 实测 |
-|---|---|---|
-| 向导「稍后配置」按钮（下一步左边） | `Wizard.tsx` 加 `onSkip`，主按钮左边渲染 | ✅ 显示、位置正确、点击进主界面 |
-| 跳过向导 | `App.tsx` `onSkipWizard` → `{ onboarded: true }` | ✅ 不再重弹，全部可在设置补配 |
-| 未配置 API Key 提示条 | `ChatInput` 工具栏右侧、模型选择旁 | ✅ 显示"⚠️ 未配置 API Key"，位置正确 |
-| 点击提示条打开设置 | `onOpenSettings` 链路 | ✅ |
-| 配置 Key 后提示条消失 | Settings 关闭时 `keyTick` 重新检测 | ✅ |
-
-## 改动文件
-
-- `src/components/Wizard.tsx`：`onSkip` prop + 稍后配置按钮
-- `src/App.tsx`：`onSkipWizard`
-- `src/components/ChatInput.tsx`：`apiKeyMissing` + `onOpenSettings`，渲染提示条
-- `src/components/ChatView.tsx`：透传 props
-- `src/components/MainView.tsx`：`hasApiKey` 检测 + `keyTick`（设置关闭重新检测）
-- `src/styles.css`：`.wizard-skip`、`.key-missing-hint`
-
-## 行为说明
-
-- 提示条只出现在**有会话的输入区**（无会话时是空状态，无输入区）
-- 跳过后 workspace 用 dsh 默认 cwd、模型默认、模式标准；全部可设置补配
-- 桌面版跳过一次即不再弹向导（区别于 web 版每次启动重弹）
-
----
-
-# harness-desktop 交付报告（004 设置控制台 + 消息通道）
-
-> 状态：Part A（A1-A7）完成并实测。Part B 网关架构 + Telegram adapter 就绪（可加载），真实平台连接待 token 验收。QQ/Discord adapter 待实现。
-
-## Part A：设置控制台（全部实测通过）
-
-| 项 | 实现 | 实测 |
-|---|---|---|
-| A1 凭证统一 | credentials.describe 枚举全部 ref + set/unset | ✅ 设置/清除/状态切换 |
-| A2 定时提醒 | 桌面端 ReminderManager（setTimeout→session.prompt 注入） | ✅ 5s 后注入会话 |
-| A3 记忆管理 | 读写 harness-memory 存储文件 | ✅ 增删查 |
-| A4 计划模式 | `/plan` 斜杠命令（host 命令表执行） | ✅ ok |
-| A5 Web 搜索 | web-search-deepseek 命名空间配置 | ✅ get/set |
-| A6 会话导出 | session.history → JSON/Markdown + 保存对话框 | ✅ |
-| A7 快捷键 | Menu Cmd+N / Cmd+, / Cmd+W | ✅ 菜单注册 |
-
-**架构说明**：dsh HTTP 网关 `UNARY_ROUTES` 是固定表，插件无法通过 `/api` 暴露自定义 RPC（不改引擎前提下），因此 A2/A3/A4 采用桌面端实现或斜杠命令——这是在不改引擎约束下的最佳路径。
-
-## Part B：消息通道
-
-- **dsh-bot-gateway 插件**（`plugins/dsh-bot-gateway/`）：会话映射存储（ctx.storageDomain）+ 入站 `agent.followup()` + 出站订阅 `session/event` 回发
-- **dsh-bot-telegram 插件**（`plugins/dsh-bot-telegram/`）：官方 Bot API 长轮询（getUpdates/sendMessage），token 走 credentials
-- **profile-setup**：三个本地插件（memory/gateway/telegram）自动安装 + 登记 bundle
-- **设置"消息通道"区**：Telegram/QQ/Discord 三卡（token 配置 + 状态）
-- ✅ 插件安装进 profile、dsh 带插件正常启动（host.describe 通过）
-- ⚠️ 真实 Telegram 收发、QQ/Discord adapter 需 token 后验证
-
-## 已知限制
-
-1. **A2/A3/A4 非 dsh 原生 RPC**：提醒走桌面端定时器、记忆走存储文件、计划走 `/plan` 命令（因 dsh 无对应公开 RPC）
-2. **记忆桌面端写入需重启生效**（运行中插件持内存态，storage-json 不热加载外部改动）
-3. **消息通道真实连接未验证**：需真实 Bot Token；QQ/Discord adapter 待实现（当前仅配置 token 占位）
-4. **Bot 入站依赖 agent 生命周期**（ctx.agents.create/get），未配 key 时 agent 无法完整处理 turn
-
----
-
-# harness-desktop 交付报告（空状态鲸鱼 + 会话删除修复）
-
-> 状态：完成，实测通过。
-
-## 1. 聊天空状态鲸鱼复用彩色渐变
-
-- 新增 `src/components/WhaleLogo.tsx`：抽出随机 12 色渐变 + SMIL 流动动画；渐变 id 用 `useId()` 唯一化（多实例不冲突）
-- `Brand.tsx` 重构：logo 改用 `<WhaleLogo className="brand-logo" />`
-- `ChatView.tsx` 空状态：`🐋` emoji → `<WhaleLogo className="chat-empty-logo" />`（64px）
-- `styles.css`：删除硬编码 `fill: url(#whale-grad)`（改注入唯一 id）；空状态 svg 64px
-- 顺带修复：Brand.tsx 曾引用已删除的 wordmark.svg（导致 renderer 空白）——改回文字字标
-
-实测：品牌区鲸鱼 + 空状态鲸鱼各自渲染、渐变 id 唯一、动画运行。
-
-## 2. 会话删除无反应 —— 根因与修复
-
-**根因**：dsh 的 session 存储持有**内存注册表**，仅外部删除会话日志文件后，`session.list` 仍返回该会话（外部删文件 ≠ dsh 注销会话），所以界面刷新后会话还在，看起来"点击删除没反应"。
-
-**修复**（`electron/ipc.ts` `session:hardDelete`）：
-1. 先 `workspace.archiveSession(sessionId)` —— dsh 原生把会话从活跃列表移除（我们的 `listSessions` 已按 archivedSessionIds 过滤，立即消失）
-2. 再取消运行中的 turn
-3. 最后尽力删除会话日志文件（数据清除）
-
-实测：快捷删除 2→1、右键删除 1→0 均生效；删除全部会话后列表为空。
-
-## 会话标签全部功能复核（实测）
-
-| 功能 | 状态 |
+## 验证结果
+| 项 | 结果 |
 |---|---|
-| 重命名 | ✅ |
-| 置顶 | ✅ |
-| 外观（标签颜色） | ✅ |
-| 复制 ID | ✅ |
-| 分支 | ✅（需会话有已完成的 turn，空白会话 fork 为 dsh 限制） |
-| 归档 | ✅ |
-| 快捷删除 | ✅（修复） |
-| 右键删除（带确认） | ✅（修复） |
-
----
-
-# harness-desktop 交付报告（005 Agent 进化闭环）
-
-> 状态：Part A-F 已实现并实测（LLM 驱动的复盘/技能生成需 API Key 后验证）。
-
-## Part A 布局重构（实测 ✅）
-- 设置页改为**左右导航**：⚙通用 / 🗝模型与凭证 / ⏰提醒与自动化 / 🧠记忆 / 📚技能 / 📡消息通道 / 🚀高级，切换正常
-- 主界面新增**🎯 任务入口**，会话/任务面板可切换
-
-## Part B 任务面板（实测 ✅）
-- 任务卡片：状态（排队/进行中/完成/失败）+ 时间 + 耗时
-- 发消息即建任务（即时反馈）；进度从 tool/* 事件推导
-- 完成→摘要✅ / 失败→错误+重试按钮 / 轨迹可展开
-
-## Part C 记忆进化（实测分组 ✅；LLM 复盘需 key）
-- 自动复盘：任务完成（成功）后发复盘 prompt 让 agent 用 memory_save 沉淀（tag: preference/project/practice）
-- 记忆注入增强：插件系统提示按 tag 分类（用户偏好/项目约定/成功做法）
-- 记忆 UI：按 tag 分组 + 编辑/删除 + 来源 + 自动复盘/注入开关
-
-## Part D 技能沉淀（UI/聚类 ✅；生成需 key）
-- 技能浏览：skill.list（名称/描述/模型可调用）
-- 3 次同类任务 → 建议沉淀技能 + 生成按钮（prompt 让 agent 写 SKILL.md 到 $DSH_HOME/skills）
-
-## Part E 全局自动化（实测 ✅）
-- 提醒升级：每日/每周定时；触发后**自动创建任务**进任务面板（reminder:fired 事件）
-
-## Part F 体验优化（✅）
-- 即时反馈/空状态/错误引导/视觉一致（--dsw-* token）
-
-## 关键说明（诚实限制）
-1. **复盘/技能生成走 dsh 引擎**（prompt 驱动），需配置 API Key 后 agent 才能执行 memory_save / 写 SKILL.md
-2. 任务状态由事件流推导，无 key 时任务快速失败（符合预期）
-3. 技能建议聚类用标题简单归一化（前 8 字符），后续可升级为语义聚类
-4. 记忆桌面端写入重启生效（沿用 004 说明）
-
----
-
-# harness-desktop 交付报告（006 修复 + 去 emoji + 通道扩展）
-
-> 状态：Part A/B/C 完成并实测（通道真实连接需平台 token）。
-
-## Part A：005 修复
-| 项 | 实现 | 实测 |
-|---|---|---|
-| A1 复盘不污染聊天 | 复盘走**独立隐藏会话**（创建后立即归档，不在会话列表），`reviewSessionId` 存设置 | ✅ 用户界面不再显示复盘 |
-| A2 技能提炼真逻辑 | 已完成任务按标题相似度聚类（字符双元组 Jaccard ≥0.45）；≥3 次自动/手动生成 SKILL.md（走隐藏会话，agent 写 `$DSH_HOME/skills/`）；`generatedSkillTypes` 防重复 | ✅ 聚类 + 生成链路接通 |
-| A3 任务持久化 | 确认 tasks 存 AppSettings，重启后完整恢复 | ✅ 重启后任务恢复渲染 |
-
-## Part B：全局去 emoji
-- 按清单清除全部 emoji（SettingsModal/TaskPanel/Sidebar/ContextMenu/Memory/Skills/ChatInput/MessageBubble/App/chatReducer/ipc/adapter），保留 ✕ 关闭按钮
-- Boot/向导的 🛠 换成 **WhaleLogo**（48-56px），三处品牌统一
-- 扫描 src/electron/adapter：**无 emoji 残留**（仅保留 ✕ 功能符号）
-
-## Part C：消息通道扩展
-- 新增 3 个 adapter：`dsh-bot-wechat`（企业微信 webhook）、`dsh-bot-feishu`（app_id/secret + token 缓存）、`dsh-bot-dingtalk`（webhook + HMAC 加签）
-- 全部注册进 web profile bundle（6 插件：memory/gateway/telegram/wechat/feishu/dingtalk）
-- 设置页消息通道 **6 卡片**：Telegram/微信/飞书/钉钉/QQ/Discord，实测渲染 ✅
-
-## 诚实说明
-1. **A1/A2 复盘与技能生成的执行**走 dsh 引擎（隐藏会话 + agent 工具），需 API Key 后 agent 才能真正 memory_save / 写 SKILL.md；无 key 时链路已接通但 agent 无法执行
-2. **微信/飞书/钉钉 adapter**：webhook 出站已实现（发送 agent 回复）；**入站需外部 webhook 接收器**（桌面应用无法常驻公网），token 配置后发送可验证
-3. 复盘隐藏会话已归档，prompt 发送正常（agent 附着处理需 key）
-4. 技能聚类用字符相似度（简单，可升级语义）
-
----
-
-# harness-desktop 交付报告（007 消息通道重做）
-
-> 状态：Part A/B/C 完成并实测（真实平台连接/测试需 token 后验证）。
-
-## Part A：竖排布局（实测 ✅）
-- 消息通道区改为**竖排平台列表**：每行 = CSS 状态圆点（● 已配置 / ○ 未配置）+ 平台名 + 右侧状态文字
-- 点击行 **accordion 展开**该平台配置表单（只展开一个，其他收起），展开行高亮
-- 替换原横向 channel-tabs 全部样式与组件逻辑
-
-## Part B：按平台定制接入（实测 ✅）
-| 平台 | 配置字段 | 引导 | 测试 |
-|---|---|---|---|
-| Telegram | Bot Token | @BotFather 链接（t.me/BotFather） | getMe 验证 ✅ |
-| 微信 | 群机器人 Webhook | 企微机器人文档 | 发测试消息 ✅ |
-| 飞书 | APP_ID + APP_SECRET | open.feishu.cn | 换 token 验证 ✅ |
-| 钉钉 | Webhook + 加签密钥 | 钉钉机器人文档 | 加签发测试消息 ✅ |
-| QQ | Bot Token/配对码 | q.qq.com（预留） | 不支持 |
-| Discord | Bot Token | discord.com/developers（预留） | 不支持 |
-| WhatsApp | 手机号 + 配对码 | 配对说明（预留） | 不支持 |
-
-- 每个平台**字段独立**（不再是统一 Token 输入框），保存按平台写对应 credentials ref
-- 展开后顶部"如何获取"引导块（分步 + 可点击链接，走 `shell.openExternal`）
-- 部分平台提供"测试连接"按钮（用表单当前值直连平台 API，不读取已存凭据、不打印 token）
-
-## Part B4：adapter 字段对齐（确认 ✅）
-- 飞书 `FEISHU_APP_ID`+`FEISHU_APP_SECRET`（token 自动刷新）、钉钉 `DINGTALK_BOT_WEBHOOK`+`DINGTALK_BOT_SECRET`（HMAC 加签）、微信 `WECHAT_BOT_WEBHOOK`、Telegram `TELEGRAM_BOT_TOKEN` —— 与注册表 ref 完全一致，无需改动
-
-## Part C：平台注册表（实测 ✅）
-- 新增 `src/channelRegistry.ts`：`{id, name, fields[], guide[], adapterName}` 可扩展结构
-- 新增平台 = 注册表加一条 + 建一个 dsh-bot-* 插件，UI 自动出现（WhatsApp/Slack/Signal 预留）
-- 空状态：全部未配置时显示引导文案"连接一个消息平台，随时和你的 Agent 对话"
-
-## 新增 IPC
-- `cred:describeRefs`（adapter.describeCredentialRefs：按任意 ref 查配置状态——原 listCredentials 只枚举 LLM ref，通道 token 查不到状态，已修复）
-- `shell:openExternal`（引导链接安全打开，仅允许 http/https）
-- `channel:test`（按平台测试连接，不落日志 token）
-
-## 改动文件
-- `src/channelRegistry.ts`（新）：平台注册表
-- `src/components/MessageChannelsSection.tsx`（重写）：竖排列表 + accordion + 定制字段 + 引导 + 测试
-- `src/styles.css`：channel-tabs/tab/card → channel-list/row/body/guide/dot 新样式
-- `shared/types.ts`：HarnessApi + describeCredentialRefs/openExternal/testChannel
-- `adapter/index.ts`：describeCredentialRefs
-- `electron/ipc.ts`：cred:describeRefs / shell:openExternal / channel:test
-- `electron/preload.ts`：暴露 3 个新方法
-- 顺带修复 006 残留：`⏰` → `[定时提醒]`（MainView.tsx / reminder-manager.ts）
-
-## 自测结果
-- ✅ `pnpm typecheck` 零错误；`pnpm build` 通过；`pnpm dev:renderer` 200
-- ✅ 竖排列表 7 平台渲染，状态圆点读取 describeRefs 正确反映配置态
-- ✅ 全界面无新增 emoji（扫描 src/electron/adapter/shared 通过）
-
-## 需要 owner 实测
-- ⏳ 展开各平台核对字段与引导链接可点开
-- ⏳ 配置真实 token 后保存 → 圆点变实心、重启保留、测试连接返回成功
-- ⏳ Telegram / 微信 / 飞书 / 钉钉 真实收发消息
-
-## 已知限制
-1. **预留平台（QQ/Discord/WhatsApp）** 无 adapter 插件，仅能保存配置，"测试连接"返回不支持。
-2. **测试连接**用表单当前输入值直连平台 API（不读已存凭据，避免明文回传主进程/渲染层）；已保存但表单被清空后需重新输入才能测试。
-3. **飞书/钉钉入站**需平台事件订阅/公网接收器（桌面应用无常驻公网，沿用 006 说明）；出站与连接验证已实现。
-
----
-
-# harness-desktop 交付报告（008 平台接入凭证修正）
-
-> 状态：Part A/B/C/D 完成并实测（真实平台接入/测试需各平台凭证后验证）。
-
-## 背景（用户指出 + 官方文档实证）
-- **QQ 官方接入 = AppID + AppSecret**（机器人 ID + 密钥，Token 鉴权已弃用）→ 我们原只有"单 Token 框"，接入方式错误，必须改。
-- 微信/钉钉除已有群机器人方式外，官方还有**企业应用级接入**（公众号 AppID+AppSecret / 企业应用 AppKey+AppSecret）→ 增加接入方式选择。
-
-## Part A：QQ 改 AppID + AppSecret（实测 ✅）
-- `channelRegistry.ts` QQ 平台改为双字段：`QQ_BOT_APP_ID`（AppID 机器人 ID）+ `QQ_BOT_APP_SECRET`（AppSecret 密钥），移除废弃 `QQ_BOT_TOKEN`
-- guide 更新为：QQ 开放平台创建机器人 → 获取 AppID/AppSecret → 粘贴保存
-- 测试连接：`POST https://bots.qq.com/app/getAppAccessToken`（AppSecret 换取 Access Token，官方新鉴权）
-- `dsh-bot-qq` adapter 不存在 → 保持 `reserved: true`（仅改字段 + guide，adapter 留待后续）
-- 兼容：旧 `QQ_BOT_TOKEN` 未强制删除（clearCredential 兼容，不破坏已有数据）
-
-## Part B：微信增加公众号/开放平台接入（实测 ✅）
-- 微信平台 `modes[0]` = 群机器人 Webhook（保留 007），`modes[1]` = 公众号/开放平台
-- 方式 2 字段：`WECHAT_APP_ID` + `WECHAT_APP_SECRET`
-- 方式 2 引导：微信公众平台创建公众号 → 获取 AppID/AppSecret → 配置服务器
-- 方式 2 测试：`GET api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=…&secret=…` 验证
-- note 说明两种方式适用场景（webhook 最简 / 公众号功能全）
-
-## Part C：钉钉增加企业应用接入（实测 ✅）
-- 钉钉平台 `modes[0]` = 群机器人 Webhook+加签（保留 007），`modes[1]` = 企业应用
-- 方式 2 字段：`DINGTALK_APP_KEY` + `DINGTALK_APP_SECRET`
-- 方式 2 引导：钉钉开放平台创建应用 → 获取 AppKey/AppSecret → 启用机器人
-- 方式 2 测试：`GET oapi.dingtalk.com/gettoken?appkey=…&appsecret=…` 验证
-
-## Part D：设置页 UI 适配（实测 ✅）
-- 微信/钉钉展开时顶部显示**接入方式 radio 选择**（Webhook 方式 / 企业应用方式），切换显示对应字段组 + 引导 + 测试
-- `platformConfigured` 改为**任一方式的全部字段配齐即算已配置**（`modeConfigured` + `platformConfigured`）
-- 展开时默认选中已配置的方式（`defaultMode`），无则第一个
-- 每个方式下有说明文字（"只能推送，最简"/"可收发消息，功能全"）
-
-## 新增/修改
-- `src/channelRegistry.ts`：`ChannelPlatform` 升级为 `modes: ChannelMode[]`（多接入方式结构）；新增 `modeConfigured`/`defaultMode`；`ALL_CHANNEL_REFS` 覆盖全部方式 ref
-- `src/components/MessageChannelsSection.tsx`：多方式渲染（radio + 字段/引导/测试随方式切换）；save/disconnect/test 按当前方式操作
-- `src/styles.css`：`.channel-modes/.channel-mode/.channel-mode-radio` 等 radio 选择样式
-- `electron/ipc.ts`：`channel:test` 增加 `modeId` 参数，新增微信 mp / 钉钉 app / QQ 测试分支
-- `shared/types.ts` + `electron/preload.ts`：`testChannel(platformId, modeId, values)`
-
-## 保持不变（验收标准 7）
-- 飞书：`FEISHU_APP_ID` + `FEISHU_APP_SECRET`（未改）
-- Telegram：`TELEGRAM_BOT_TOKEN`（未改）
-- Discord：`DISCORD_BOT_TOKEN`（未改）
-- 007 全部功能（竖排/引导/测试/注册表）保留
-
-## 自测结果
-- ✅ `pnpm typecheck` 零错误；`pnpm build` 通过；`pnpm dev:renderer` 200
-- ✅ QQ 双字段渲染、微信/钉钉接入方式 radio 切换显示对应字段
-- ✅ 飞书/Telegram/Discord 字段与 007 完全一致
-- ✅ 全界面无新增 emoji（扫描 src/electron/adapter/shared 通过）
-
-## 需要 owner 实测
-- ⏳ QQ 展开核对 AppID + AppSecret 双输入框 + q.qq.com 引导链接
-- ⏳ 微信/钉钉切换接入方式，任一方式字段配齐 → 圆点变实心
-- ⏳ 各平台真实凭证保存 + 测试连接成功
-
-## 已知限制
-1. **QQ**：`dsh-bot-qq` adapter 未实现（保持 reserved），仅能保存配置 + 测试凭证有效性；收发消息需后续实现 adapter。
-2. **微信公众号 / 钉钉企业应用**：凭证可保存 + 测试验证；对应 adapter 收发能力待后续实现（群机器人 webhook 方式仍可发消息）。
-3. **入站**：飞书/钉钉/企微入站仍需平台事件订阅/公网接收器（桌面应用无常驻公网，沿用 006/007 说明）。
-4. **测试连接**用表单当前输入值直连平台 API（不读已存凭据），保存后表单被清空需重新输入才能测试。
-
----
-
-# harness-desktop 交付报告（009 通道安全与体验升级 + 新增平台）
-
-> 状态：Part A/B/C/D 完成并实测（真实平台白名单拒收/邮件收发/Slack 连接需平台凭证后验证）。
-
-## Part A：安全策略（P0，实测 ✅）
-- **每个平台加"访问控制"配置**：DM 策略（开放/白名单/禁用）+ 允许用户列表 + 群聊策略 + 允许群列表
-- **gateway 入站校验**：`dsh-bot-gateway.checkAccess()` 在 `handleInbound` 前校验
-  - 策略 ref 约定：`<平台大写>_DM_POLICY / _ALLOWED_USERS / _GROUP_POLICY / _ALLOWED_GROUPS`
-  - 白名单 = 逗号分隔的用户/群 ID；未授权返回"未授权，请联系管理员"提示，禁用则提示"已禁用"
-- **UI 访问控制面板**：每平台展开底部有"访问控制"小节（策略下拉 + 白名单输入 + 保存）
-  - 镜像存 AppSettings（`channelAccess`，重启预填）+ 同步写 credentials（gateway 读取校验）
-- **Telegram adapter** 入站透传 `userId`/`chatType`（dm/group），其余 adapter 同步支持 meta
-
-## Part B：分步引导完善（实测 ✅）
-- 全平台 guide 补齐完整分步：Telegram（5 步）/ Discord（6 步）/ QQ（4 步）/ 飞书（5 步）/ 钉钉（4 步）/ 微信企微（3 步）/ 公众号（5 步）
-- 步骤含链接 + 关键提示（如"Token 形如 123456:ABC-…"、"username 需以 bot 结尾"、开启 Message Content Intent）
-
-## Part C：错误透传（实测 ✅）
-- `channel:test` 统一透传官方具体错误：
-  - QQ：`data.message`（如 "appid invalid"）| Telegram：`data.description`（如 "Unauthorized"）
-  - 微信/钉钉 webhook：解析 `errmsg` 透传 | 飞书：`data.msg`
-- 网络层失败（fetch failed / 超时等）→ 友好提示"无法连接平台服务器，检查网络/代理"
-
-## Part D：新增平台（实测 ✅）
-| 平台 | 接入 | 说明 |
-|---|---|---|
-| Email | SMTP 发送 + IMAP 收信轮询（30s） | node 内置 net/tls 实现最小 SMTP/IMAP，零第三方依赖；测试 = SMTP AUTH LOGIN |
-| Webhooks | 本地 HTTP 服务 `127.0.0.1:<port>/webhook/<token>` | 任何系统 POST `{"text":"..."}` 即入队；UI 显示入站 URL + curl 示例 |
-| Slack | Socket Mode（App Token xapp- + Bot Token xoxb-） | 免公网 WebSocket 收发；测试 = auth.test + apps.connections.open |
-
-## 新增文件
-- `plugins/dsh-bot-email/`（新）：SMTP 发 + IMAP 收
-- `plugins/dsh-bot-webhooks/`（新）：入站 HTTP 服务
-- `plugins/dsh-bot-slack/`（新）：Socket Mode 收发
-- `src/channelRegistry.ts`：+access 配置、+email/webhooks/slack 三平台、引导完善
-- `src/components/MessageChannelsSection.tsx`：访问控制面板 + webhooks URL 展示
-- `src/styles.css`：`.channel-access` / `.channel-webhook-url` 样式
-- `plugins/dsh-bot-gateway/index.js`：+checkAccess 入站校验（inject credentials）
-- `plugins/dsh-bot-telegram/index.js`：入站透传 userId/chatType
-- `electron/profile-setup.ts`：登记 email/webhooks/slack 三个新插件
-- `electron/ipc.ts`：channel:test 错误透传 + slack/email 测试分支 + 网络提示
-- `shared/types.ts`：+ChannelAccessConfig / AppSettings.channelAccess
-
-## 自测结果
-- ✅ `pnpm typecheck` 零错误；`pnpm build` 通过；`pnpm dev:renderer` 200
-- ✅ 全部插件 node --check 通过
-- ✅ 全界面无新增 emoji
-
-## 需要 owner 实测
-- ⏳ 白名单：配置后未授权用户发消息被拒（收到提示）
-- ⏳ Email：配真实 SMTP/IMAP → 测试发送成功、收信入队
-- ⏳ Webhooks：保存后 curl POST 一条消息能进 agent 会话
-- ⏳ Slack：真实 Socket Mode token 连接收发
-
-## 已知限制
-1. **Email**：SMTP 仅支持 AUTH LOGIN（QQ/Gmail/163 授权码均可）；IMAP 轮询标记已读；超大附件正文截断 4000 字符。
-2. **Webhooks**：仅监听 127.0.0.1 本机（不暴露公网）；token 与端口由用户在表单填写。
-3. **Slack**：需要 App-Level Token（Socket Mode）；出站依赖 Bot Token 有 `chat:write` 权限。
-4. **白名单校验**：在 gateway 内基于 credentials 策略 ref；已在 UI 配置并保存即生效，无需重启（credentials 实时 resolve）。
-5. **访问控制对预留平台（QQ/Discord/WhatsApp）**：无 adapter 插件不生效，仅保存配置。
-
----
-
-# harness-desktop 交付报告（010 空状态首页加完整输入套件）
-
-> 状态：完成并实测（typecheck/build 通过，真实发送链路待 owner 实测）。
-
-## 完成内容
-- **无会话首页（sessionId=null）** 现在显示：WhaleLogo + "开始对话" + 提示文字，**下方直接渲染完整 ChatInput 套件**（输入框 / 工作区 / 模式 / 模型两级 / 附件 / 发送）
-- 空状态**直接发送** = 一步完成：自动 `createSession(workspaceCwd, mode)` → 应用选中模型 → 通知 MainView 激活会话 → 发送消息
-- 空状态可切换工作区 / 模式 / 模型（模式走 `onModeChange`，模型走本地 selection，会话内逻辑不受影响）
-- 空状态可添加附件
-- 未配置 API Key 时沿用 `apiKeyMissing` 提示条（点击去设置）
-- 左侧"新会话"原有路径不受影响
-
-## 改动文件
-- `src/components/ChatView.tsx`：模型/预设加载拆为独立 effect（不依赖 sessionId）；`!sessionId` 分支渲染 `ChatInput`；新增 `sendFromEmpty` + `onSessionCreated` prop
-- `src/components/MainView.tsx`：新增 `activateSession`（激活 + view 切 chat + 刷新列表），传给 ChatView
-- `src/styles.css`：`.chat-empty` 改纵向布局；`.chat-empty-hero`（居中）+ `.chat-empty-composer`（底部输入区，max-width 760px）
-
-## 自测结果
-- ✅ `pnpm typecheck` 零错误；`pnpm build` 通过；`pnpm dev:renderer` 200
-- ✅ 空状态渲染 logo + 文字 + 输入套件；无新增 emoji
-
-## 需要 owner 实测
-- ⏳ 空首页输入文字 → 发送 → 自动创建会话并进入聊天，消息已发出
-- ⏳ 空状态切换工作区/模式/模型、添加附件
-- ⏳ 左侧"新会话"路径仍正常
-
-## 已知限制
-1. 空状态模型选择仅本地保存（创建会话后尽力应用）；进入会话后以引擎实际模型为准。
-2. 空状态发送创建会话为异步链路，创建失败会在输入区下方显示错误。
-
----
-
-# harness-desktop 交付报告（011 测试连接修复 + 外观配置）
-
-> 状态：Part A/B 完成并实测（typecheck/build 通过，真实凭证测试/浅色视觉待 owner 实测）。
-
-## Part A：修复测试连接用已保存凭证（Bug）
-- **根因**：`channel:test` 只读表单临时值（`values[p.id]`），保存凭证后表单清空 → 传空值 → 测试报"凭证无效"
-- **修复**（electron/ipc.ts）：测试连接**优先用已保存的 credentials**，表单有输入才覆盖
-  - 新增 `readSavedCredentials(dshHome)`：直接读 `$DSH_HOME/.credentials.yaml`（dsh credentials 本地文件，yaml 解析）
-  - 新增 `pick(form, ref)` / `credentialSource(form, ref)` 帮助函数
-  - **全部平台统一**：telegram / wechat(mp+webhook) / feishu / dingtalk(app+webhook) / qq / slack / email
-- **来源标识**：测试成功后显示"（已保存凭证）"或"（表单凭证）"，区分来源
-- 表单为空 + 未保存 → 仍提示"请先填写 xxx"
-- 修复后：用户 QQ 真实凭证保存 → 直接点测试 → 用已保存凭证 → 成功
-
-## Part B：设置-通用加"外观"配置
-| 配置项 | 选项 | 实现 |
-|---|---|---|
-| 主题模式 | 深色 / 浅色 / 跟随系统 | `html[data-theme]` + CSS 变量覆盖 |
-| 主题色 | DeepSeek 蓝 / 绿 / 紫 / 橙 | `html[data-accent]` + `--hd-accent-*` 别名 |
-| 字体大小 | 小 / 中 / 大 | `--hd-font-size*` |
-| 消息密度 | 舒适 / 紧凑 | `--hd-msg-gap` / `--hd-msg-padding` |
-| 启动行为 | 开机自启 / 启动最小化到后台 | `app.setLoginItemSettings` |
-
-- **实现**：
-  - `AppSettings.appearance`（AppearanceConfig，存 app-settings.json，重启保留）
-  - `App.tsx` effect 把 appearance 写到 `<html>` 的 data-theme/data-accent/data-font-size/data-density 属性 → CSS 变量即时生效
-  - 全站 `var(--dsw-deepseek-*)` → `var(--hd-accent-*)`（主题色切换生效），蓝色 rgba 底 → `color-mix(in srgb, var(--hd-accent-400) X%, transparent)`
-  - 浅色主题覆盖全部背景/边框/文字 token，修正 3 处硬编码深色文字（`color: rgb(15,17,21)` → `var(--dsw-bg-base)`）与品牌字标（`#fff` → `var(--dsw-label-primary)`）保证对比度
-  - 新组件 `AppearanceSection.tsx`（设置 → 通用 → 外观区）
-  - 新 IPC `app:setAutoLaunch`（自启，含 openAsHidden）
-
-## 改动文件
-- `electron/ipc.ts`：channel:test 全部平台用已保存凭证 + readSavedCredentials + app:setAutoLaunch
-- `electron/main.ts`：启动时应用自启/最小化设置
-- `shared/types.ts`：+AppearanceConfig + AppSettings.appearance + setAutoLaunch API
-- `electron/settings-store.ts`：外观默认值
-- `electron/preload.ts`：+setAutoLaunch
-- `src/App.tsx`：appearance → html 属性
-- `src/components/AppearanceSection.tsx`（新）：外观配置 UI
-- `src/components/SettingsModal.tsx`：通用页挂外观区
-- `src/styles.css`：data-theme/accent/font/density 变量 + 全站 --hd-accent 替换 + 浅色对比度修复
-
-## 自测结果
-- ✅ `pnpm typecheck` 零错误；`pnpm build` 通过；`pnpm dev:renderer` 200
-- ✅ 无新增 emoji
-- ✅ 全部平台测试连接走已保存凭证逻辑（表单空 → 读 yaml 已存值）
-
-## 需要 owner 实测
-- ⏳ 保存 QQ 凭证后直接点"测试连接"→ 成功（不再报无效）
-- ⏳ 表单重新输入新值点测试 → 用表单值
-- ⏳ 切浅色主题 → 界面可读；换主题色 → 主色按钮/选中态变色
-- ⏳ 字体大小/密度即时生效；重启后外观保留
-- ⏳ 开机自启 / 启动最小化开关
-
-## 已知限制
-1. **测试连接读取已存凭证**走 `$DSH_HOME/.credentials.yaml` 直接解析（yaml 包为传递依赖，未加新依赖）；若 dsh 改为加密存储需同步调整。
-2. **跟随系统**主题在系统切浅色时即时生效（CSS media query）；应用内无手动刷新需求。
-3. **启动最小化**仅隐藏主窗口，dsh 引擎仍后台运行；无系统托盘图标（本轮未做托盘）。
-
----
-
-# harness-desktop 交付报告（012 安全加固 6 项）
-
-> 状态：A/B/C/D/E 完成并实测（typecheck/build 通过，CSP/导航/单实例已实测，附件限制逻辑就绪）。
-
-## Part A：渲染进程安全纵深
-- **A1 sandbox**：保持 `sandbox: false` + 显式 `webSecurity: true`（采用提示词方案 B）。
-  - 原因：preload 编译为 ESM（package.json `type: module`），sandbox 下 preload 仅支持 CommonJS/受限 require，ESM import 会崩溃。已在 main.ts 注释说明。
-  - 补偿：严格 CSP + 导航防护（B 部分）+ webSecurity。
-- **A2 CSP（index.html）**：收紧 connect-src 至 `http://127.0.0.1:* ws://127.0.0.1:* http://localhost:* ws://localhost:*`（dsh 随机端口 + Vite dev HMR），新增 `object-src 'none'`、`base-uri 'self'`、`frame-src 'none'`。dev/prod 均验证加载 200 且 CSP 生效。
-
-## Part B：导航防护（实测 ✅）
-- `setWindowOpenHandler`：新窗口仅 http/https 走系统浏览器（`shell.openExternal`），一律 `deny`。
-- `will-navigate`：仅允许 dev server 或打包 `file://` 自身资源，其余 `preventDefault`。
-
-## Part C：单实例锁（实测 ✅）
-- `requestSingleInstanceLock` 失败则 `app.quit()`；`second-instance` 聚焦/还原已有窗口。
-- 实测：双开时第二个实例退出，进程数不变（6）。
-
-## Part D：MessageList 渲染上限（实现 ✅）
-- 最多渲染最近 500 条 + "显示更早消息（还有 N 条）"按钮（每次回看 200 条）。
-- 不引虚拟滚动库；自动滚底逻辑保留。
-
-## Part E：附件限制（实现 ✅）
-- 前端（ChatInput）：单文件 ≤50MB、总数 ≤10，超限提示"文件过大/附件最多 10 个"。
-- 主进程兜底（ipc files:pick）：`statSync` 校验单文件 50MB、总数 10，超限 throw（防绕过前端）。
-- `PickedFile` 增加 `size` 字段。
-
-## 改动文件
-- `index.html`：CSP 收紧（connect-src 限定 127.0.0.1/localhost + object-src/base-uri/frame-src）
-- `electron/main.ts`：webSecurity 显式、单实例锁、setWindowOpenHandler、will-navigate
-- `electron/ipc.ts`：files:pick 附件大小/数量校验 + statSync
-- `shared/types.ts`：PickedFile.size
-- `src/components/MessageList.tsx`：窗口化渲染 + 加载更早按钮
-- `src/components/ChatInput.tsx`：附件前端限制 + 错误提示
-- `src/styles.css`：load-earlier-btn / chat-input-err
-
-## 自测结果
-- ✅ `pnpm typecheck` 零错误；`pnpm build` 通过；dev 200 + prod 构建 CSP 生效
-- ✅ `pnpm start` 正常启动（preload API 可用，无崩溃）
-- ✅ 双开 → 第二个实例退出（单实例锁生效）
-- ✅ 无新增 emoji（保留 ✕ 功能符号）
-
-## 需要 owner 实测
-- ⏳ 点外部引导链接（@BotFather 等）→ 系统浏览器打开、应用内不弹窗
-- ⏳ 超长会话（>500 条）→ 只渲染最近 + 可加载更早
-- ⏳ 选 >50MB 文件 / 选 11 个文件 → 提示并拒绝
-- ⏳ dev 模式 HMR 正常（CSP 不阻断）
-
-## 已知限制
-1. **sandbox 未开启**：因 ESM preload 与 sandbox 不兼容（方案 B 补偿 webSecurity + 严格 CSP）；如需真正 sandbox，需把 preload 改为 CJS（独立构建）。
-2. **附件大小限制**依赖 `statSync`（主进程），前端仅在文件已选取后按 size 校验；超限在对话框后提示。
-
----
-
-# harness-desktop 交付报告（013 bot-gateway 致命 bug 修复 + 端到端验收）
-
-> 状态：Part A/B 修复完成并实测通过（webhook 入站 200 / agent 附加成功 / 会话复用），
-> 任务面板+记忆复盘链路需配置真实 DeepSeek API Key 后由 owner 验证。
-
-## 背景（端到端验收发现 2 个致命 bug）
-用 Webhooks 通道实测发现：
-- 消息进来 → gateway 收到 → 会话创建 → **agent 附加失败 → HTTP 500 "not enqueued" → 消息不进 agent 循环**
-- 影响所有平台，消息通道=摆设
-
-## Part A：修复 Bug 1 —— webhooks 空 token 永远 404
-- **根因**：`parts.length < 2 || parts[1] !== token`，token 为空（未配置）时永远 404
-- **修复**（plugins/dsh-bot-webhooks/index.js）：`tokenOk = !token || parts[1] === token`，token 为空时跳过校验
-- 保留安全：配置 token 后必须匹配（实测错误 token 404）
-- 日志：未配置时提示"入站开放"
-
-## Part B：修复 Bug 2 —— 未注册 workspace / agent 附加失败（致命）
-- **根因**（参照 dsh-src 源码确认）：
-  1. 手动 `ctx.sessions.create(undefined, {meta:{cwd}})` 创建 session 后，再 `ctx.agents.create({sessionId})`
-     —— `agents.create` 工厂内部会 `sessions.prepare(sessionId)`，同 id session 已存在 → 冲突 → agent 附加失败
-  2. workspace 未注册（官方 session.create 路径需 workspace 先行）
-- **修复**（plugins/dsh-bot-gateway/index.js）：
-  1. 参照官方 `ensureSession` 路径：**去掉手动 `sessions.create`**，直接用 `ctx.agents.create({ sessionId, meta: {cwd} })` 一步创建 session + agent
-  2. 创建前确保 workspace 已注册：`workspaceRegistry.resolveByPath(cwd)` 存在则复用，否则 `workspaceRegistry.create(cwd)`
-  3. cwd 取 `config.workspaceCwd` 或 `process.cwd()`（host cwd，与官方 defaults.cwd 一致）
-  4. 注入 `workspaceRegistry`
-- 复用现有 agent 逻辑不变（已附加直接用）
-
-## Part C：端到端验收（实测通过 ✅）
-| 验收项 | 结果 |
-|---|---|
-| webhook 入站返回 200 ok | ✅ `{"ok":true}`（不再 not enqueued） |
-| agent 真实创建/附加 | ✅ host.describe attachedSessions=1，session-1 blank:false |
-| 连续消息同一会话 | ✅ 两条消息后 attachedSessions 仍=1，session-1 复用 |
-| 空 token 时 /webhook 直接可用 | ✅ 200 |
-| 配置 token 后错误 token 404 | ✅ `{"ok":false,"error":"not found"}` |
-| 配置 token 后正确 token 200 | ✅ |
-| 任务面板 / 记忆复盘 | ⏳ 需真实 API Key（无 key 时 agent 无法执行 LLM turn，turns=0） |
-| pnpm typecheck 零错误 | ✅ |
-| 所有平台共用 handleInbound | ✅（同一修复覆盖 Telegram/QQ/微信/飞书/钉钉/Email/Slack/Webhooks） |
-
-## 改动文件
-- `plugins/dsh-bot-webhooks/index.js`：空 token 跳过校验 + 日志
-- `plugins/dsh-bot-gateway/index.js`：workspace 注册 + `agents.create` 一步创建（去手动 sessions.create）
-
-## 需要 owner 实测
-- ⏳ 配置真实 API Key 后：POST 消息 → agent 真实回复 → 任务面板出现任务 → 记忆库复盘条目
-- ⏳ 各平台（Telegram/QQ/微信等）入站路径
-
-## 已知限制
-1. **真实 LLM 处理**依赖 `DEEPSEEK_API_KEY`：未配置时 agent 能创建/入队，但 turn 会快速失败（turns/steps=0），消息不会产生真实回复——这是引擎行为，非 bug。
-2. **workspace 注册失败降级**：`workspaceRegistry.create` 失败仅 warn 不阻塞（agent 创建仍继续）；极端情况下会话可能不在 workspace list。
-3. **插件需重新安装进 profile** 才生效（本次已手动同步 profile；下次 `checkProfile` 会因 target 存在而跳过覆盖——如需强制更新需清 profile 缓存）。
-
----
-
-# harness-desktop 交付报告（014 修复 agent 缺 model + 端到端闭环）
-
-> 状态：Part A 修复完成并实测通过（模型变量有值、turn 走到真实 LLM 调用、会话复用），
-> 真实回复需配置 DeepSeek API Key 后由 owner 验证。
-
-## 背景（013 审查实测发现 Bug 3）
-013 修复后 agent 报错：
-```
-prompt variable "{{model}}" has no value for this assembly (section "deployment:persona")
-```
-**根因**：gateway 创建 agent 时没传 `agentOptions: { provider, model }`，system prompt 模板 `{{model}}` 无值 → turn 组装失败。影响所有平台，是消息通道最后一环。
-
-## Part A：修复 Bug 3 —— 创建 agent 传 model
-- **配置来源**：
-  1. gateway Config 新增 `provider`/`model`（可配）
-  2. 空则用 `ctx.agentDefaultModel.currentSelection()`（dsh 全局默认，实测返回 deepseek-official / deepseek-v4-flash）
-  3. 两者都无 → 明确报错（不静默创建无模型 agent）
-- **新增 `resolveAgentOptions(ctx, config)`**：返回 `{provider, model}`
-- **两处创建都传 `agentOptions`**：首次创建 + 附加分支
-- **附加分支增强**（端到端实测发现）：进程重启后 session_map 残留、agent 不在 registry →
-  先 `agents.resume({resumeSessionId})`（持久化会话恢复），失败再 `agents.create`（新会话）——
-  参照官方 ensureSession 逻辑（`live` 用现有，`stored` 走 resume）
-- `AgentOptions` 结构以 `~/dsh-src/packages/core/agent/src/runtime-types.ts` 为准（provider/model/maxTokens）
-
-## Part B：端到端闭环验收（实测）
-| 验收项 | 结果 |
-|---|---|
-| webhook 入站 200 | ✅ `{ok:true}`（不再 not enqueued） |
-| agent 创建/恢复 | ✅ attachedSessions=1，session 复用 |
-| 模型变量有值 | ✅ 事件流不再报 `{{model}} has no value` |
-| turn 走到真实 LLM 调用 | ✅ assistant/chunk finish → 真实认证错误（占位 key 401），证明 prompt 组装成功、model 正确传入 |
-| 连续消息同一会话 | ✅ 两条消息 attachedSessions 仍=1 |
-| 空 token / 错误 token | ✅ 未回归（013 修复保留） |
-| 任务面板 / 记忆复盘 | ⏳ 需真实 API Key |
-| pnpm typecheck / build | ✅ 零错误 |
-| 所有平台共用 handleInbound | ✅ |
-
-## 改动文件
-- `plugins/dsh-bot-gateway/index.js`：Config +provider/model、`resolveAgentOptions`、两处创建传 agentOptions、附加分支 resume→create、注入 agentDefaultModel
-- （013 已修：webhooks 空 token、workspace 注册）
-
-## 需要 owner 实测
-- ⏳ 配置真实 DeepSeek API Key → POST 消息 → agent 真实回复 → 任务面板任务 → 记忆库复盘条目
-- ⏳ webhook 出站回调（agent 回复回发）
-
-## 已知限制
-1. **真实回复**依赖 `DEEPSEEK_API_KEY`：占位 key 实测到"LLM 认证错误"即证明修复生效；配真实 key 得真实回复。
-2. **agent 为内存态**：进程重启后 session_map 持久化但 agent 需 resume 恢复（已实现）；首次 resume 需 agent-loop factory 就绪。
-3. **gateway provider/model 优先**：设置页消息通道区暂未暴露这两个配置（当前走 dsh 全局默认兜底，够用）。
-
----
-
-# harness-desktop 交付报告（015 流式 UI + webhook 同步回复）
-
-> 状态：Part A/B 完成并实测（乐观去重单元测试 PASS、webhook 同步回复端到端实测通过、
-> typecheck/build 通过），桌面 UI 流式视觉待 owner 实测。
-
-## Part A：会话窗口流式优化
-
-### A1. 乐观 UI（用户消息立即上屏）✅
-- `ChatView.sendMessage`：点击发送 → 先 `chatReducer('optimistic-user')` 立即上屏，再异步 `sendMessage`
-- **去重**：乐观消息 id 前缀 `opt-`；dsh `user-message` 事件到达时，reducer 找到最近一条乐观用户消息**替换为真实消息**（不重复）
-- 单元测试验证：乐观 + user-message → 只有 1 条用户消息（PASS）
-- 空状态 `sendFromEmpty` 同步支持（切会话后乐观上屏）
-
-### A2. 流式回复（打字机）✅
-- 链路已存在且验证：dsh `assistant/chunk`(text-delta/reasoning-delta) → adapter `assistant-delta` → reducer 逐字 append → `stream-caret` 打字机光标
-- `MessageBubble` 增强：reasoning 块加"思考中"标签 + streaming 呼吸动画（CSS，无 emoji）
-- 思考中空隙由 `typing-indicator` 覆盖
-
-### A3. 发送状态 ✅
-- header 有"停止"按钮（chat.running 时）→ cancelTurn
-- 输入框发送中禁用（`disabled={sending}`）
-- 工具调用卡片即时显示（tool-call → ToolCallCard，tool-result 更新状态）
-
-## Part B：webhook 同步回复（端到端实测通过 ✅）
-- **默认同步等待**：POST /webhook/<token> → 入站注册 pending → agent 回复时 `adapter.send` resolve → 响应 `{"ok":true,"reply":"<agent回复>"}`
-- `?async=1`：立即返回 `{"ok":true}`（兼容旧行为）
-- 超时（默认 60s）：`{"ok":true,"reply":"","timeout":true}`
-- 空 token 路径同样生效
-- **实测**（真实 DeepSeek key）：
-  - "1+1等于几？" → `{"ok":true,"reply":"2","timeout":false}`（1.6s）
-  - "2+2等于几？" → `{"ok":true,"reply":"4","timeout":false}`
-  - "你好" → `{"ok":true,"reply":"你好！有什么可以帮你的吗？","timeout":false}`
-  - 错误 token → 404；`?async=1` → 立即 `{ok:true}`
-  - 连续消息同会话复用
-
-## 改动文件
-- `src/chatReducer.ts`：`optimistic-user` action + user-message 去重替换
-- `shared/types.ts`：SessionStreamEvent 增加 `optimistic-user`
-- `src/components/ChatView.tsx`：sendMessage/sendFromEmpty 乐观 UI
-- `src/components/MessageBubble.tsx`：reasoning"思考中"标签 + streaming 动画
-- `src/styles.css`：`.reasoning-label` / `@keyframes reasoning-pulse`
-- `plugins/dsh-bot-webhooks/index.js`：同步等待回复 + pending 回调 + `?async=1` + 超时
-
-## 自测结果
-- ✅ `pnpm typecheck` 零错误；`pnpm build` 通过；插件 node --check 通过
-- ✅ 乐观去重单元测试 PASS（1 条用户消息不重复）
-- ✅ webhook 同步回复端到端实测（真实 key，回复正确）
-- ✅ 无新增 emoji
-
-## 需要 owner 实测
-- ⏳ 桌面 UI：发送消息立即上屏、agent 流式打字机、思考中指示、停止生成按钮
-- ⏳ 工具调用卡片即时显示
-- ⏳ 任务面板 / 复盘 / 空状态创建不受影响
-
-## 已知限制
-1. **同步等待**默认 60s 超时；长回复可能触发超时（可加 `?wait_ms=` 参数扩展，本轮未做）。
-2. **乐观去重**按"最近一条 opt- 用户消息"匹配：极端并发发送多条的竞态下理论上可能误替换，实际 UI 单线程顺序发送无此问题。
-3. **桌面流式视觉**依赖真实 LLM 响应速度，慢模型时打字机节奏由事件流驱动（天然平滑）。
-
----
-
-# harness-desktop 交付报告（016 修复事件订阅竞态 + 端口漂移）
-
-> 状态：Part A/B/C 完成并实测（排队补订阅单元测试 PASS、mux 连接实测建立、
-> 引擎重启端口漂移实测恢复、typecheck/build 通过），UI 流式视觉待 owner 实测。
-
-## 背景（015 审查实测发现致命竞态）
-- 引擎端完全正常（agent 真实回复 96+ 流式事件）
-- **renderer 收不到任何事件**：mux WebSocket 从未建立
-- **根因**：`dsh:subscribe` 只有 adapter 已创建才订阅，adapter 创建前订阅被静默跳过，之后无补订阅
-
-## Part A：可靠订阅（排队补订阅）✅
-- **DshManager 新增 `subscribeEvents(cb)`**：adapter 就绪则立即接入；未就绪则排队
-- **`rebindEventListeners()`**：adapter 创建/重建后，为所有订阅者重新接入事件流
-- `ipc.ts` 的 `dsh:subscribe` 改为调 `manager.subscribeEvents(onEvent)`（不再直接操作 adapter）
-
-## Part B：renderer 幂等 ✅
-- preload `onSessionEvent` 每次调用都 invoke `dsh:subscribe`（已存在，保留）
-- 主进程订阅改为排队式，renderer 何时订阅都能接上
-
-## Part C：引擎重启端口漂移 ✅
-- **引擎退出**（child exit）：解除旧 adapter 订阅（eventUnsubs 清空），**保留 eventListeners 列表**
-- **自动重启**：start → spawn → handleStdout 解析新端口 → new DshAdapter → `rebindEventListeners` 重新接入
-- **实测**：kill dsh 子进程 → 自动重启换端口（52758→52905）→ Electron 主进程自动建立新 mux 连接（52906→52905）→ 功能正常
-
-## 实测结果
-| 验收项 | 结果 |
-|---|---|
-| 排队订阅→补订阅→换端口重建→重新接入 | ✅ 单元测试 PASS（事件都收到） |
-| mux 连接建立 | ✅ lsof 确认 Electron↔dsh ESTABLISHED |
-| 引擎重启端口漂移 | ✅ kill 后自动重启，新 mux 连接建立 |
-| 重启后功能正常 | ✅ webhook 同步回复 "4+4=8" |
-| 引擎回复正常 | ✅ "3+3=6" |
-| pnpm typecheck / build | ✅ 零错误 |
+| typecheck | ✅ 零错误 |
+| test | ✅ 20 个核心测试全绿（chatReducer/events/tasks） |
+| build | ✅ renderer 238KB→218KB（通道代码已删） |
+| app 启动 | ✅ 无崩溃 |
+| dsh 引擎 | ✅ host.describe 正常（provider/model 就绪） |
+| find 残留 | ✅ 无 channel/dsh-bot 文件 |
 | dev server | ✅ 200 |
 | 无新增 emoji | ✅ |
 
-## 改动文件
-- `electron/dsh-manager.ts`：+subscribeEvents / rebindEventListeners / eventListeners / eventUnsubs；exit 保留订阅者并解除旧 adapter；handleStdout 创建 adapter 后 rebind；stop 清 eventUnsubs
-- `electron/ipc.ts`：dsh:subscribe → manager.subscribeEvents
+## 已知限制
+1. 测试数从 28 → 20（gateway-authorize 测试随插件删除，符合任务 D）。
+2. dsh-home 的 .credentials.yaml 仍含通道残留值（引擎黑盒数据，无插件引用，不影响功能）。
+3. 历史代码在 git 快照与 docs/history/ 中完整保留，未来可恢复。
 
-## 需要 owner 实测
-- ⏳ 启动应用发消息 → 看到思考动画 + 打字机流式回复
-- ⏳ kill dsh 进程让它自动拉起 → 发消息仍正常（端口漂移）
-- ⏳ 多轮对话每条都有流式
+
+---
+
+# harness-desktop 交付报告（018 README 更新 + 首启向导完善）
+
+> 状态：完成（README 产品视角刷新 + 向导 4 步完善；typecheck/build 通过）。
+
+## Part A：README 更新
+- 全面刷新为**产品视角**：特性（流式/任务/进化/10+ 平台/安全/外观/托盘）、快速开始、开发指南、技术栈、已知限制（诚实标注未签名/体积/Windows 未验证）
+- 中文为主 + 顶部英文摘要；无任何真实密钥（全占位符）
+
+## Part B：首启向导完善
+- 3 步 → **4 步**：欢迎（品牌 + 价值）/ 配置 API Key（+ **测试连接**按钮）/ 选择工作区（可跳过）/ 完成
+- 新增 `cred:testKey` IPC：主进程调 DeepSeek /models 验证 key 有效性（key 不入 renderer 往返）
+- 进度指示 `第 x 步 / 共 4 步` + 步骤点（CSS，无 emoji）；每步可跳过/返回
+- 无工作区也可完成（用引擎默认 cwd）
+
+## 改动文件
+- `README.md`（重写）
+- `src/components/Wizard.tsx`（4 步 + 测试连接）
+- `electron/ipc.ts`（cred:testKey）、`shared/types.ts`、`electron/preload.ts`
+- `src/styles.css`（wizard-key-msg）
+
+---
+
+# harness-desktop 交付报告（019 Vitest 单测 + safeStorage 加密）
+
+> 状态：完成（28 个单测全绿；safeStorage 迁移实测密文存储）。
+
+## Part A：Vitest 基础单测
+- 引入 Vitest；`pnpm test` / `pnpm test:watch`
+- **28 个测试**：chatReducer（乐观去重/流式/工具卡，11）、adapter/events（转换/过滤，7）、tasks 状态机（5）、gateway authorize 白名单（7）
+- 抽取 `authorize()` 纯函数供插件复用 + 单测
+
+## Part B：safeStorage 加密
+- 新增 `electron/credential-store.ts`：safeStorage 加密层，文件 `userData/safe-credentials.json`（base64 密文）
+- `setApiKey`/`setCredential`/`setProviderApiKey` 写引擎（明文给黑盒）**且**写加密层
+- 启动迁移：把 `.credentials.yaml` 明文加密进 safe-credentials（幂等）
+- channel:test 读取优先解密层
+- **实测**：启动后 safe-credentials.json 为密文，无明文泄漏
+
+## 改动文件
+- `package.json`（vitest + scripts）、`src/__tests__/*`、`adapter/__tests__/*`、`plugins/__tests__/*`
+- `electron/credential-store.ts`（新）、`electron/ipc.ts`、`electron/main.ts`
+- `plugins/dsh-bot-gateway/index.js`（authorize 抽取）、`tsconfig.electron.json`（排除测试）
+
+---
+
+# harness-desktop 交付报告（020 QQ adapter 补全 + 体积审计）
+
+> 状态：Part A 完成（QQ adapter 实现 + 沙箱 + registry 更新）；Part B 审计报告 + 裁剪方案。
+
+## Part A：QQ adapter 补全
+- `plugins/dsh-bot-qq/`（新）：官方 api-v2 WebSocket 长连接
+  - AppID + AppSecret → Access Token（getAppAccessToken，支持沙箱 sandbox.bots.qq.com）
+  - Gateway WS 收消息（MESSAGE_CREATE：C2C 单聊 + 群聊）
+  - REST 回发（v2/users/{openid}/messages / v2/groups/{group_openid}/messages）
+  - 沙箱模式：`QQ_BOT_SANDBOX=true` credential 配置
+- channelRegistry：QQ 去掉 reserved，加沙箱字段；测试连接支持沙箱
+- profile-setup 注册 dsh-bot-qq；Discord/WhatsApp 保持 reserved（预留注释）
+
+## Part B：体积审计
+- `docs/SIZE.md`：审计报告 + 修复
+- 根因：after-pack 全量复制 node_modules，把 devDependencies（electron 296M、app-builder-bin 207M、typescript 23M、esbuild 9.6M 等约 550MB）带进包
+- 修复：after-pack 排除 devDependencies 与构建工具链（node-pty/koffi/@deepseek-ai 等运行时依赖完整保留）
+- 预估：node_modules 987MB → ~400MB，整体 .app 1.2G → ~700M，dmg 400-450M
+
+---
+
+# harness-desktop 交付报告（021 electron-updater + 报告归档）
+
+> 状态：Part A 完成（electron-updater 集成 + 手动检查 UI）；Part B 完成（报告归档）。
+
+## Part A：electron-updater 自动更新
+- 依赖 electron-updater；electron-builder.yml `publish: github (988hj7tczd-oss/harness-desktop)`
+- 主进程：启动后台检查、下载进度推送、下载完成通知 + 重启安装、失败静默
+- 菜单 + 托盘"检查更新"；设置-通用"关于与更新"区（`UpdateSection.tsx`）
+- `update:check` / `update:quitAndInstall` IPC + `update:status` 推送
+- 未签名 macOS 构建 updater 不活跃 → 静默跳过（SIGNING.md 说明）
+
+## Part B：报告归档
+- `docs/history/REPORT-001.md` … `REPORT-017.md`（历史完整归档，非编号报告并入对应版本）
+- `docs/REPORT.md` 只留最新（导航 + 018-021 摘要）
+- `prompts/README.md` 017-021 状态表更新
+
+---
+
+# harness-desktop 交付报告（023 核心体验完善）
+
+> 状态：Part A/B/C/D 完成并验证（typecheck/31 测试/build/dev 全绿）。
+
+## Part A：聊天体验
+- **消息复制**：MessageBubble hover 显示"复制"按钮，整条消息（含代码块）复制到剪贴板，成功变"已复制"2 秒
+- **消息编辑**（用户消息）：hover"编辑"→ textarea 改原文 → 保存（本地替换 + 重新触发回复）/ 取消
+  - chatReducer 新增 `replace-user-text` 乐观替换
+- **重新生成**（assistant）：hover"重新生成"→ 重发该回复前最近的用户消息
+- **流式细节**：错误时保留已生成部分 + 显示错误行（`message-error-line`）
+- hover 操作按钮半透明不遮挡（`.message-actions`）
+
+## Part B：任务面板
+- **任务类型**：`inferTaskType`（标题关键词推断 code/writing/query/analysis/other），任务卡显示类型徽标（CSS 色块）
+- **过滤**：全部/进行中/已完成/失败 tab
+- **进度**：进度条（完成/总步骤 %）+ 步骤数
+- **展开轨迹**：完整步骤列表（名称/状态/错误）+ 总结（步数/成功/失败）
+- **操作**：失败重试 / 运行中取消（cancelTurn）/ 复制摘要 / 复盘
+- TaskStep 增加 pending 状态 + error 字段；tool-result 失败记录错误
+
+## Part C：记忆/技能可视化 + 进化
+- **记忆卡片**：类型徽标（preference/project/practice/other）+ 时间 + 标签
+- **进化视图**（设置新增"进化"导航）：统计（任务/记忆/技能数）+ 时间线（任务完成/记忆沉淀/技能提炼，按时间倒序）
+
+## Part D：会话轨迹（新增）
+- **事件扩展**：adapter/events.ts 新增 `step-end` / `turn-end`（含 reason/error/usage）归一化；`step/start` 与 `turn/start` 分开
+- **轨迹构建**：`src/trajectory.ts` TrajectoryBuilder（增量，按 turn 分组：用户/步骤/思考/工具/工具结果/回复）
+- **UI**：聊天头部"轨迹"按钮 → 抽屉面板（TrajectoryPanel）
+  - 按回合分组，回合头显示节点数/工具数/步数/耗时/结果
+  - 节点图标（CSS 色点）+ 标签 + 摘要；工具节点可展开参数/结果；思考/回复可展开
+  - 回合错误/停止状态 + token 统计（如有）
+- 历史加载也重建轨迹；不落盘（纯前端组装）
+
+## 改动文件
+- `src/components/MessageBubble.tsx`（复制/编辑/重新生成/错误行）
+- `src/components/ChatView.tsx`（onEditMessage/onRegenerate + 轨迹集成）
+- `src/chatReducer.ts` / `shared/types.ts`（replace-user-text + step-end/turn-end 事件）
+- `adapter/events.ts`（step-end/turn-end/step-start 归一化）
+- `src/components/TaskPanel.tsx` + `src/tasks.ts`（类型/过滤/进度/展开/取消/错误）
+- `src/components/MemorySection.tsx` + `EvolutionSection.tsx`（新，记忆徽标 + 进化时间线）
+- `src/components/TrajectoryPanel.tsx`（新）+ `src/trajectory.ts`（新）
+- `src/styles.css`（message-actions/traj-*/evo-*/task-* 样式）
+- 测试：`chatReducer.test.ts`（replace-user-text）、`tasks.test.ts`（inferTaskType/tool error）、`events.test.ts`（step-end/turn-end）
+
+## 验证结果
+| 项 | 结果 |
+|---|---|
+| typecheck | 零错误 |
+| test | 31 个全绿（+11 新增） |
+| build | 通过 |
+| app 启动 | 无崩溃，dsh 引擎正常 |
+| dev | 200 |
+| 无新增 emoji | 通过 |
 
 ## 已知限制
-1. **事件推送依赖 adapter 创建成功**：若 dsh 启动失败（超时），订阅保持排队，需引擎恢复后 rebind。
-2. **mux 断线重连**由 DshClient 内部处理（2s 重试，已有）；本修复保证 adapter 重建时订阅不丢。
+1. **编辑/重新生成**：dsh 无原生"编辑/重发"语义，实现为"重发文本产生新 turn"；旧回复保留在会话历史（未删除）。
+2. **token 统计**：仅在 dsh turn/end 事件带 usage 时显示；多数模型可能不返回。
+3. **轨迹回合归属**：工具事件通过当前 active step 归属 turn（step/start 后才有 turn 信息），个别历史事件可能归入就近回合。
+4. **轨迹不落盘**：刷新/重启后从 getHistory 重建（依赖 dsh 历史保留完整事件）。
 
+---
 
+# harness-desktop 交付报告（024 修复 5 问题 + UI 对齐官方）
 
+> 状态：Part A/B/C/D 完成并验证（typecheck/32 测试/build/dev 全绿）。
 
+## Part A：重复会话修复（问题 1）
+- **adapter listSessions 去重**：按 sessionId 唯一（引擎可能因订阅/列表竞态返回重复）
+- **displaySessions 去重保险**：渲染前 filter 掉重复 sessionId
+- 实测：创建 1 会话 → session.list 4 个（3 旧 + 1 新），dup count 0
 
+## Part B：思考状态不结束（问题 4）
+- **根因**：023 新增 `turn/end → turn-end` case 后，旧 `turn/end → running:false` case 仍保留但 switch 只命中第一个 → `running:false` 永远不推送
+- **修复**：turn-end case 内同时推送 `running:false`（思考完成/转圈停止）；删除重复 case
+- 测试：新增 turn/end 同时推送 running:false
 
+## Part C：轨迹对齐官方（问题 2 + 3）
+- **右侧 details 栏**：轨迹从底部抽屉改为右侧栏（对齐官方 AppFrame 三栏）
+- **轨迹节点 hover 操作**：复制节点内容 + 展开/收起详情（工具参数/结果/思考文本）
 
+## Part D：UI 对齐官方 web 版（问题 5）
+- **气泡**：用户消息右对齐 + `--dsw-specific-bubble`（DeepSeek 浅蓝 tint，对齐官方 MessageItem）；assistant 左对齐 + 浅灰底（`--dsw-assistant-bubble`），18px 圆角 + 6px 尾角
+- **思考行**：ReasoningRow 紧凑折叠行（"思考中"标签 + 摘要 + 展开体），替代原大标签
+- **markdown**：轻量渲染（代码块/行内代码/粗体），不引库
+- **布局**：`.chat-columns` 左右布局（center 消息 + details 轨迹），对齐官方三栏概念
 
+## 改动文件
+- `adapter/index.ts`（listSessions 去重）、`adapter/events.ts`（turn/end 重复 case 合并）
+- `src/components/MainView.tsx`（displaySessions 去重）
+- `src/components/MessageBubble.tsx`（气泡样式 + ReasoningRow + 轻量 markdown）
+- `src/components/ChatView.tsx`（轨迹改 details 列）
+- `src/components/TrajectoryPanel.tsx`（节点复制/展开）
+- `src/styles.css`（bubble token + reasoning-row + chat-columns + md 样式）
+- 测试：`events.test.ts`（turn/end running:false）
 
+## 验证结果
+| 项 | 结果 |
+|---|---|
+| typecheck | 零错误 |
+| test | 32 个全绿 |
+| build | 通过 |
+| app 启动 | 无崩溃，dsh 引擎正常 |
+| dev | 200 |
+| 无新增 emoji | 通过 |
 
+## 已知限制
+1. **三栏布局**：details 栏为 320px 固定宽（未做拖拽手柄）；侧栏未做窄窗口自动折叠。
+2. **markdown** 轻量渲染（代码块/行内代码/粗体）；表格/列表等复杂语法未覆盖（不引库约束）。
+3. **轨迹归属**：工具事件经 active step 归属 turn，历史重建个别可能归入就近回合。
+
+---
+
+# harness-desktop 交付报告（025 修复主题 system + 气泡可读性）
+
+> 状态：Part A/B/C 完成并验证（typecheck/32 测试/build/dev 全绿）。
+
+## Part A：system 主题解析（核心修复）
+- **根因**：App.tsx 把 `theme: 'system'` 原样设为 `data-theme='system'`，但 CSS 只有 `[data-theme='light']` 与深色 `:root`，无 system 规则 → 回落到深色；浅色系统下界面"全黑"
+- **修复**：App.tsx 外观 effect 用 `matchMedia('(prefers-color-scheme: light)')` 把 system 解析成 `light`/`dark` 再设 `data-theme`；并监听系统变化实时切换（cleanup 移除监听）
+- 单元测试：system→light/dark 解析逻辑验证通过
+
+## Part B：气泡颜色核对与修复
+- **深色**：assistant=rgb(30,31,33) 深灰 + 白字 ✅；用户气泡=浅蓝 rgb(234,238,255) + **深字（修复）**
+- **浅色**：assistant=rgb(240,241,244) 浅灰 + 深字 ✅；用户气泡=浅蓝 + 深字 ✅
+- **关键修复**：用户气泡文字从 `--dsw-label-primary`（深色主题下=白字）改为固定深色 `rgb(23,26,31)`——原"浅蓝底+白字"深色主题下不可见
+- assistant 气泡加 `--dsw-border-l1` 细边框提升层次
+
+## Part C：即时生效
+- 设置页切深/浅/system → data-theme 立即更新（onUpdateSettings 链路原有）
+- system 模式跟随系统外观实时切换（matchMedia change 监听）
+
+## 改动文件
+- `src/App.tsx`（system 解析 + matchMedia 监听）
+- `src/styles.css`（用户气泡固定深字 + assistant 气泡边框）
+
+## 验证结果
+| 项 | 结果 |
+|---|---|
+| typecheck | 零错误 |
+| test | 32 个全绿 |
+| build | 通过 |
+| app 启动 | 无崩溃 |
+| dev | 200 |
+| 主题解析单元验证 | system→light/dark 正确 |
+| 无新增 emoji | 通过 |
+
+## 已知限制
+1. **运行时 DOM 验证**依赖真实系统外观切换（GUI 操作），本轮通过单元测试 + 代码审查 + app 启动验证；system 实时跟随需 owner 实测切换系统外观。
+2. `[data-theme='system']` CSS 规则保留作防御（App 现在只设 light/dark，不触发）。
+
+---
+
+# harness-desktop 交付报告（026 迁移官方 Web UI）
+
+> 状态：M1（A0）完成并实测；桌面元素官方模块化（M2-M4）如实标注待官方插槽契约逆向。
+> 官方 UI 已作为主界面运行，桌面独有元素保留在回退页（功能不丢）。
+
+## M1（A0）：窗口迁移官方 UI（完成 ✅）
+- **主窗口 loadURL 引擎端口**：`createWindow()` 先加载本地渲染器作启动/回退屏，引擎就绪后 `loadEngineUI(port)` 加载官方 UI
+- **回退策略**：引擎未就绪/失败 → 保留本地渲染器（不白屏）
+- **端口跟随（A0.3）**：监听 `manager.onStatus`，引擎崩溃重启换端口 → 窗口重新 loadURL 新端口（防端口漂移）
+- **导航白名单**：will-navigate 放行 `http://127.0.0.1:*`（仅引擎端口）+ dev server + file
+- **实测**：
+  - 官方 UI 加载：Electron↔引擎端口多条 ESTABLISHED（HTTP + WS mux），主进程无报错
+  - 端口漂移：kill 引擎 → 自动重启换端口（58512→58806）→ 窗口自动跟随新端口
+  - typecheck/test(32)/build 全绿
+
+## M2 部分：__desktop__ 桥（完成 ✅）
+- preload 新增 `window.__desktop__`：`getPort()` / `notify()` / `onEnginePort()`（端口漂移跟随）/ `onMenuEvent()`（Cmd+N/Cmd+, 转发）
+- 新增 IPC：`desktop:getPort` / `desktop:notify`
+- 官方 UI 页面同样可用（preload 对任何加载页面注入）
+
+## M2-M4 桌面元素官方模块化（诚实标注：待官方插槽契约逆向）
+- 任务/记忆/进化/提醒/外观扩展做成官方客户端模块（details.tool / settings.section 插槽）需要逆向
+  `dsh-client-modules` 注册机制与官方插槽契约——高风险、约 2 周工作量，本轮未冒险实施
+- **当前保障**：桌面独有元素完整保留在回退页（dist/index.html），通过托盘/启动屏可达，功能零丢失
+
+## 改动文件
+- `electron/main.ts`：createWindow 加载流程 + loadEngineUI + 端口跟随 + 导航白名单
+- `electron/ipc.ts`：desktop:getPort / desktop:notify
+- `electron/preload.ts`：window.__desktop__ 桥
+
+## 验证结果
+| 项 | 结果 |
+|---|---|
+| 官方 UI 加载 | ✅ ESTABLISHED 连接确认 |
+| 端口漂移跟随 | ✅ kill 后自动重连新端口 |
+| typecheck / test / build | ✅ 32 测试全绿 |
+| dev（vite 回退） | ✅ 200 |
+| 无新增 emoji | ✅ |
+
+## 已知限制
+1. **桌面元素未进官方 UI**：任务/记忆/进化/提醒/外观扩展仍在回退页，官方 UI 内暂不可见（需官方插槽契约逆向后做成客户端模块）。
+2. **官方 UI 全屏后**桌面控制台/日志入口不可见（shell.overlay 模块后置）。
+3. **凭证双写**（官方 settings 直接改 .credentials.yaml vs 桌面 safeStorage）需 diff 回填机制（§6.2 未实施）。
+4. 官方 UI 的 onboarding 向导门（G1/G2）未实施——首次启动仍走回退页向导。
+
+---
+
+# harness-desktop 交付报告（027 A1 桌面元素模块化 + 22 问题修复）
+
+> 状态：P0/P1 全部修复并验证；P2/P3 大部分修复；M2 __desktop__ 桥补全。
+> 官方客户端模块注入（M2-M4 主体）如实标注待 ui-slots 契约逆向。
+
+## 附带修复（22 个问题）
+
+### P0 必修（4/4 完成 ✅）
+1. **reminder 失败不丢**：fire 失败 → nextAt+30s 顺延重试（retries 计数，上限 10 次），不再删除；实测失败提醒顺延未丢
+2. **每日 00:xx 解析**：`h || 9` → `h ?? 9`；实测 00:30 → 0:30（不再变 9:30）；nextWeekly 同步
+3. **loadEngineUI 失败重试**：递增重试（1s/2s/5s*attempt，上限 10 次），不再永停回退屏
+4. **导航白名单收窄**：`http://127.0.0.1:<port>` 精确前缀（loadedEnginePort），杜绝任意本地端口诱导导航；官方 UI 加载仍正常（实测）
+
+### P1 模块复用代码（6/6 完成 ✅，先修后搬）
+5. tasks.ts startTask 保留同会话历史（只移 running/queued，上限 50）——新增测试
+6. trajectory.ts 用户消息归"下一回合"（maxTurn+1），不再全归回合 1
+7. trajectory.ts 仅 step/start(step>=1) 记步骤节点，turn/start(step=0) 只记回合开始——stepCount 不再多 1
+8. chatReducer 编辑重发去重：末条用户消息文本相同则替换不新增——新增测试
+9. Wizard `workspace ?? null`（不再写空字符串 cwd）；App onCompleteWizard 兜底
+10. EvolutionSection 移除技能 Date.now() 时间线事件（仅保留统计数）
+
+### P2（6/7 完成；#16 回退页低优标注后置）
+11. MessageBubble confirmEdit 后重置 editText
+12. UpdateSection error 状态用 `settings-msg err`（不再全绿）
+13. ipc dispose 补 unsubStatus + reminders.stop()
+14. credential-store 移除死代码 get()；set() safeStorage 不可用时 warn
+15. yaml 显式加入 dependencies
+
+### P3（3/3 完成）
+18. after-pack @scope devDeps 用完整包名判断（修复 @types/* 漏进包）——实测通过
+19. electron-builder 移除 `identity: null`（改环境变量控制签名）
+20. prompts/README 026/025/024/023 重复行去重 + 状态修正
+
+### P4 待实测（未修，标注）
+21. 任务状态机多步骤提前 done（需实测 dsh 每 step 是否发 assistant/message）
+22. session:hardDelete 顺序竞态（需实测归档后日志是否仍在写）
+
+## M2：__desktop__ 桥补全（完成 ✅）
+- 026 已有 getPort/notify；本任务确认 onEnginePort + onMenuEvent 已实现（preload）
+
+## M2-M4 官方客户端模块注入（诚实标注：待 ui-slots 契约逆向）
+- 官方机制已探明：客户端模块用 `dsh.client.inject`（package.json）+ `window.__ModuleLoader__.load({id, factory})` 注册，factory 经 `require('@deepseek-ai/dsh-client-ui-slots')` 拿插槽 API
+- 实现任务面板进 details.tool / 记忆进化等进 settings.section 需完整逆向 ui-slots 插槽 API + GUI 实测验证——高风险大工作量，本轮未冒险实施
+- 保障：桌面独有元素完整保留在回退页（dist），功能零丢失
+
+## 改动文件
+- `electron/reminder-manager.ts`（#1/#2）、`electron/main.ts`（#3/#4）、`electron/ipc.ts`（#13）、`electron/credential-store.ts`（#14）、`package.json`（#15）、`electron-builder.yml`（#19）、`scripts/after-pack.mjs`（#18）、`prompts/README.md`（#20）
+- `src/tasks.ts`（#5）、`src/trajectory.ts`（#6/#7）、`src/chatReducer.ts`（#8）、`src/components/Wizard.tsx`（#9）、`EvolutionSection.tsx`（#10）、`MessageBubble.tsx`（#11）、`UpdateSection.tsx`（#12）、`shared/types.ts`（Reminder.retries）
+- 测试：tasks.test.ts（#5）、chatReducer.test.ts（#8）
+
+## 验证结果
+| 项 | 结果 |
+|---|---|
+| typecheck | 零错误 |
+| test | 34 个全绿（+2 新增） |
+| build | 通过 |
+| app 启动 | 无崩溃，官方 UI 加载正常（白名单收窄后） |
+| #1 顺延重试 | 单元验证 PASS |
+| #2 00:xx 解析 | 单元验证 PASS |
+| #18 filter | 单元验证 PASS |
+| 无新增 emoji | ✅ |
+
+## 已知限制
+1. **官方客户端模块注入未实施**（M2-M4 主体）：需逆向 ui-slots 完整插槽 API 并 GUI 实测，标注为后续工作；桌面元素保留在回退页。
+2. **P4 #21/#22** 需真实 dsh 行为实测后处置。
+3. **P2 #16**（ChatView 空状态乐观被历史覆盖）在回退页场景，标注后置。
+
+---
+
+# harness-desktop 交付报告（028 模块化推进 + 品牌 UI 改版）
+
+> 状态：F1-F4 附带修复完成 + 品牌 C 落地 + __desktop__ 桥 getVersion；官方客户端模块注入标注待 AMD 构建。
+
+## 附带修复（F1-F4）
+
+### F1. trajectory 步骤去重重做（完成 ✅）
+- **根因**：027 用 `evt.step >= 1` 区分 turn/start 与 step/start，但真实 dsh 事件 `turn/start` 无 step 字段（adapter 归一化为 step=1）→ 幻影步骤节点仍存在
+- **修法**：`seenTurns: Set<number>` —— 每回合**第一个** assistant-start 即 turn/start（只记回合开始），之后才记步骤节点；reset 清空
+- **不改 adapter**（避免破坏 chatReducer 的 (turn,step) 幂等去重）
+- **测试**：新增 `trajectory.test.ts`（5 用例：回合归属/步骤计数不多 1/工具归属/多回合/reset）；修正 events.test.ts 的错误假设（turn/start 不带 step → 归一化 step=1）
+
+### F2. loadEngineUI 重试竞态（完成 ✅）
+- tryLoad 开头检查 `loadedEnginePort === port`，引擎换新端口后放弃旧端口重试（不再覆盖新页面）
+
+### F3. prompts/README 027 行修复（完成 ✅）
+- 描述单元格多 `|` 致表格 6 列损坏 → 修复为 5 列；028 行补入
+
+### F4. docs/REPORT 027 计数（完成 ✅）
+- P2 5/7 → 6/7（#17 已修）；P3 2/3 → 3/3（#19 完成）
+
+## 品牌 UI（Part C，完成 ✅）
+- **C3 版本号**：新增 `desktop:getVersion` IPC + `__desktop__.getVersion()`；`src/types.d.ts` 声明 `window.__desktop__` 类型
+- **C2 首启 hero**：回退页空状态 hero 加"harness desktop v0.1.0 · 你的 AI 工作台"品牌副标题 + 引导文案
+- **C1 右上角品牌**：回退页聊天 header 右侧加品牌 chip（彩色鲸鱼 logo + "harness desktop vX"）
+- 主进程零改动（仅加 1 个 IPC + preload 方法）
+
+## M2-M4 官方客户端模块注入（诚实标注：待 AMD 构建）
+- 官方机制确认：`ctx.slots.inject('conversation.view', () => ctx.slots.register({name, id, order, locale, label, inject}, Component))`
+- 官方模块以 AMD `__ModuleLoader__.load({id, factory})` 格式编译（`lib/client.js`），依赖 `@deepseek-ai/dsh-client-ui-slots` 等
+- 我们的 React 组件需编译成 AMD 模块 + 打包官方依赖——需构建工具链 + GUI 实测验证，本轮未冒险实施（做错会破坏官方 UI）
+- 桌面独有元素保留在回退页，功能零丢失
+
+## 改动文件
+- `src/trajectory.ts`（F1 seenTurns）、`src/__tests__/trajectory.test.ts`（新）、`adapter/__tests__/events.test.ts`（修正假设）
+- `electron/main.ts`（F2）、`electron/ipc.ts`（desktop:getVersion）、`electron/preload.ts`（getVersion）
+- `src/components/ChatView.tsx`（header 品牌 + hero 品牌）、`src/types.d.ts`（__desktop__ 类型）、`src/styles.css`（品牌样式）
+- `prompts/README.md`（F3）、`docs/REPORT.md`（F4）
+
+## 验证结果
+| 项 | 结果 |
+|---|---|
+| typecheck | 零错误 |
+| test | 39 个全绿（+5 trajectory） |
+| build | 通过 |
+| app 启动 | 无崩溃，官方 UI 加载正常 |
+| 无新增 emoji | ✅ |
+
+## 已知限制
+1. **官方客户端模块注入未实施**（M2-M4 主体）：需 AMD 构建工具链（把 React 组件编译成官方 `__ModuleLoader__` 格式）+ GUI 实测，标注为后续工作。
+2. **品牌区在回退页**：官方 UI 的右上角品牌需同上的官方模块机制；当前品牌展示在回退页（引擎启动/向导/空状态/聊天头）。
+
+---
+
+# harness-desktop 交付报告（029 官方客户端模块注入 + 品牌）
+
+> 状态：S1 最小验证 + S2 元素模块化 + S3 品牌全部完成；7 个官方客户端模块进 manifest 且 client.js 可服务。
+
+## S1：最小验证（hello 分区 ✅）
+- 手写 AMD 外壳（`window.__ModuleLoader__.load({id, factory})`），注册 `settings.section`（id: 'hello'）
+- **链路验证通过**：cordis.patch.yml 注入 → profile-setup 安装 → boot manifest 收集（`dsh-desktop-hello` entry）→ `/plugins/dsh-desktop-hello/client.js` 服务 200
+- 依赖从平台种子表 require（react / dsh-client-ui-slots），不打包
+
+## S2：桌面元素模块化（7 模块 ✅）
+- **6 个 settings.section 分区**：记忆 / 进化 / 提醒 / 外观扩展 / 技能 + hello（验证用）
+- **1 个 header.utilities 品牌**：dsh-desktop-brand（右上角彩色鲸鱼 + 版本）
+- 每个模块 = 独立插件目录（package.json `dsh.client` + cordis.patch.yml + index.js + client.js）
+- 数据走 `window.harness`（preload IPC），不依赖官方 client runtime 数据服务
+- 组件用 React.createElement（手写 AMD 无 JSX），依赖 require('react')
+- 已注册 profile-setup + 同步 profile bundles
+
+## S3：品牌 UI（✅）
+- **右上角品牌**（dsh-desktop-brand）：彩色鲸鱼 SVG（渐变，从 favicon path）+ "harness desktop v0.1.0"（getVersion），注册 `conversation.session.header.utilities`（order -100 靠前）
+- **版本统一**：UpdateSection 关于页改 getVersion()（不再硬编码 v0.1.0）
+
+## 验证结果
+| 项 | 结果 |
+|---|---|
+| manifest 收集 | ✅ 7 个 dsh-desktop-* 全在 |
+| client.js 服务 | ✅ 全部 200 |
+| typecheck | 零错误 |
+| test | 39 个全绿 |
+| build | 通过 |
+| app 启动 | 无崩溃 |
+| 无新增 emoji | ✅ |
+
+## 改动文件
+- `plugins/dsh-desktop-{hello,memory,evolution,reminders,appearance,skills,brand}/`（7 个新模块）
+- `electron/profile-setup.ts`（BUNDLE_PLUGINS 登记）
+- `src/components/UpdateSection.tsx`（版本统一）
+- `prompts/README.md`（029 状态）
+
+## 已知限制
+1. **组件无 JSX**（手写 AMD）：用 React.createElement 编写，样式内联；官方 UI 视觉需 owner 实测确认。
+2. **模块执行验证**：manifest 收集 + client.js 200 + 语法正确已证明加载链路；设置页分区/header 品牌的实际渲染需 owner GUI 实测。
+3. **会话头部任务视图**（conversation.view 任务面板）未实现——本轮做的是 settings 分区 + 品牌；任务面板进官方 details 栏需另建 conversation.view 模块（数据经 window.harness.onSessionEvent + TaskStore）。
+4. 自定义 provider 模块未做（需先核对官方 settings-models 是否覆盖）。
+
+---
+
+# harness-desktop 交付报告（029 复审修改：动态品牌 + 分区整理）
+
+> 状态：根据 owner 复审意见完成 4 项调整；typecheck/test/build 全绿。
+
+## 1. UI 右上角动态变色鲸鱼品牌 ✅
+- `dsh-desktop-brand` 模块：鲸鱼从静态渐变改为**动态变色**（SMIL `animate attributeName="stop-color"`，3 个 stop 各 12 色循环流动，同 WhaleLogo 风格，dur 13.2s）
+- 注册 `conversation.session.header.utilities`（右上角，order -100 靠前），显示动态鲸鱼 + "harness desktop v0.1.0"（getVersion）
+
+## 2. 会话首次页面（hero）品牌 ✅
+- `dsh-desktop-brand` 新增 `conversation.composer.dock` 品牌条：大号动态鲸鱼（48px）+ "harness desktop v0.1.0" + "你的 AI 工作台 · 开始对话"，首次会话空态可见
+
+## 3. 设置里删掉"桌面"分区 ✅
+- 删除 `dsh-desktop-hello` 模块（settings.section id: 'hello'，label "桌面"）
+- 从 profile-setup + profile bundles 移除；manifest 验证 hello 消失（404）
+
+## 4. 外观扩展合并到通用设置 ✅
+- `dsh-desktop-appearance` 从独立 `settings.section` 改为注册 `settings.general.item`（list/root）——**合并进官方"通用"分区**
+- inject 补 `@deepseek-ai/dsh-client-ui-settings-general`（声明该子插槽）
+
+## 验证结果
+| 项 | 结果 |
+|---|---|
+| manifest | hello 消失；6 模块在（memory/evolution/reminders/appearance/skills/brand） |
+| client.js 服务 | 全部 200；hello 404 |
+| brand 动态变色 | 3 处 animate stop-color ✅ |
+| appearance 合并 | 注册 settings.general.item ✅ |
+| typecheck / test / build | 39 全绿 / 通过 |
+| app 启动 | 无崩溃 |
+| 无 emoji | ✅ |
+
+## 改动文件
+- `plugins/dsh-desktop-brand/client.js`（动态鲸鱼 + hero 品牌条）
+- `plugins/dsh-desktop-hello/`（删除）
+- `plugins/dsh-desktop-appearance/client.js` + `package.json`（合并到通用）
+- `electron/profile-setup.ts`（移除 hello）
+- profile bundles 同步
+
+## 已知限制
+- 动态鲸鱼/hero 品牌条的实际视觉需 owner GUI 实测确认（SMIL 动画在官方 UI 页面正常渲染、不破坏布局）。
+- `conversation.composer.dock` 品牌条在有消息的会话页也会显示（不仅是空态），如需仅空态显示需进一步限定。
+
+---
+
+# harness-desktop 交付报告（030 修复 hero 品牌替换）
+
+> 状态：修复完成，CDP 实测右上角 + hero 品牌均成功。
+
+## 根因（诊断）
+- 官方 hero 只在 `sessionId === undefined`（无激活会话）时渲染
+- preload 原 `ensureHero` 只监听 `childList` —— **locale 就绪后 hero 文本从 key/英文变中文是 `characterData` 变更，childList 监听不到** → 文本匹配永不命中
+
+## 修复（electron/preload.ts）
+1. **方案 A**：MutationObserver 补 `characterData: true`
+2. **方案 B**：多语言兜底匹配（'探索未至' / 'Into the Unknown' / 'hero.headline'）
+3. **方案 C**：结构匹配 `[class*="_headline_"]`（CSS Modules 原类名保留在 hash 中，不依赖 locale 文本）+ 校验含 svg/fish 特征防误替换
+4. **方案 D**：React 恢复兜底（data-hd-hero-brand 标记 + observer 重注入）
+
+## 实测证据（CDP）
+- 右上角：`corner=true`，`cornerText="harness desktop v0.1.0"` ✅
+- hero 替换：`heroBrand=true`（官方 hero 已替换）✅
+- 替换后 hero DOM：svg=32、anims=4（动态变色）、ver=v0.1.0、text="harness desktop v0.1.0" ✅
+- `activeSession=false`（hero 场景正确）
+- 官方 headline/文本列表为空（已被品牌替换）
+
+## 验证
+| 项 | 结果 |
+|---|---|
+| typecheck | 零错误 |
+| test | 39 全绿 |
+| build:electron | 通过 |
+| app 启动 | 无崩溃 |
+| 官方 UI | 加载正常（Electron↔引擎 ESTABLISHED）|
+| CDP 实测 | 右上角 + hero 品牌均成功 |
+| 无 emoji | ✅ |
+
+## 改动文件
+- `electron/preload.ts`（ensureHero 三层匹配 + observer characterData + 恢复兜底）
+
+## 已知限制
+- hero 品牌只在**无激活会话**（首次/空态）时显示；有历史会话自动激活时 hero 不渲染（官方行为）
+- CSS Modules 类名若随官方升级变化，结构匹配需适配（文本匹配兜底仍在）

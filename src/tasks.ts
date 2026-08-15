@@ -1,4 +1,17 @@
-import type { SessionStreamEvent, TaskRecord } from '../shared/types'
+import type { SessionStreamEvent, TaskRecord, TaskType } from '../shared/types'
+
+/** 从任务标题推断类型（关键词匹配，简单规则）。 */
+export function inferTaskType(title: string): TaskType {
+  const t = title.toLowerCase()
+  const has = (words: string[]) => words.some((w) => t.includes(w))
+  // 写作类优先：明确写作对象（文章/报告/文案/邮件/总结/翻译/标题/润色）
+  if (has(['作文', '报告', '文案', '邮件', '总结', '翻译', '润色', '标题', '文章', '随笔', '简历', 'story', 'essay', 'review', 'blog', '稿'])) return 'writing'
+  // 代码类：明确代码词
+  if (has(['代码', '重构', '实现', '函数', '组件', '脚本', 'sql', 'api', 'bug', '调试', 'deploy', 'docker', 'git', '测试', 'build', '修一下', '修一个', '写个函数', '写一个函数', '写个脚本', '写个组件', '写个工具', '编程', '编码', '开发', '部署', '接口', '报错', '错误'])) return 'code'
+  if (has(['查', '搜索', '什么', '是多少', '多少', '知道', 'who', 'what', 'when', 'where', '找一下', '帮我找'])) return 'query'
+  if (has(['分析', '比较', '对比', '评估', '方案', '决策', '优化', '为什么', '如何', '利弊', '趋势', 'forecast', '建议', '规划'])) return 'analysis'
+  return 'other'
+}
 
 /**
  * src/tasks.ts —— 任务存储（renderer 侧）。
@@ -44,9 +57,14 @@ export class TaskStore {
       startedAt: Date.now(),
       steps: [],
       source,
+      type: inferTaskType(title),
     }
-    // 同一会话已有运行中的任务 → 覆盖为新任务
-    this.tasks = [task, ...this.tasks.filter((t) => t.status === 'running' || t.sessionId !== sessionId)]
+    // 保留同会话历史任务：只移除同会话的 running/queued（被新任务替代），
+    // 已完成/失败任务保留（任务面板过滤 tab 与复盘依赖它们）；列表上限 50 条。
+    const filtered = this.tasks.filter(
+      (t) => !(t.sessionId === sessionId && (t.status === 'running' || t.status === 'queued')),
+    )
+    this.tasks = [task, ...filtered].slice(0, 50)
     this.commit()
     return id
   }
@@ -88,7 +106,13 @@ export class TaskStore {
       case 'tool-result': {
         running.steps = running.steps.map((s, i) =>
           i === running.steps.length - 1 && s.name
-            ? { ...s, status: evt.isError ? 'failed' : 'done' }
+            ? {
+                ...s,
+                status: evt.isError ? 'failed' : 'done',
+                error: evt.isError
+                  ? evt.content.filter((b) => b.type === 'text').map((b) => (b.type === 'text' ? b.text : '')).join('').slice(0, 300)
+                  : undefined,
+              }
             : s,
         )
         break

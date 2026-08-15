@@ -2,8 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AgentPresetInfo, ModelGroup, PickedFile } from '../../shared/types'
 import { chatReducer, emptyChat, type ChatState } from '../chatReducer'
 import { subscribeSession } from '../bus'
+import { TrajectoryBuilder, type TrajectoryTurn } from '../trajectory'
 import MessageList from './MessageList'
 import ChatInput from './ChatInput'
+import TrajectoryPanel from './TrajectoryPanel'
 import WhaleLogo from './WhaleLogo'
 
 const harness = window.harness
@@ -32,8 +34,17 @@ export default function ChatView({ sessionId, onTitleChange, modelsTick, workspa
   const [presets, setPresets] = useState<AgentPresetInfo[]>([])
   const [sending, setSending] = useState(false)
   const [attachments, setAttachments] = useState<PickedFile[]>([])
+  const [trajectory, setTrajectory] = useState<TrajectoryTurn[]>([])
+  const [showTrajectory, setShowTrajectory] = useState(false)
+  const [appVersion, setAppVersion] = useState('')
+  const trajBuilderRef = useRef<TrajectoryBuilder | null>(null)
+  if (!trajBuilderRef.current) trajBuilderRef.current = new TrajectoryBuilder()
   const chatRef = useRef(chat)
   chatRef.current = chat
+
+  useEffect(() => {
+    void window.__desktop__.getVersion().then((v) => setAppVersion(v))
+  }, [])
 
   // 模型目录 + 预设（不依赖会话：空状态首页也要用；modelsTick 变化时刷新）
   useEffect(() => {
@@ -72,14 +83,22 @@ export default function ChatView({ sessionId, onTitleChange, modelsTick, workspa
     setAttachments([])
     setLoading(true)
     setError(null)
+    setShowTrajectory(false)
+    trajBuilderRef.current!.reset()
+    setTrajectory([])
 
     ;(async () => {
       const histRes = await harness.getHistory(sessionId)
       if (!alive) return
       if (histRes.ok) {
         let state = emptyChat
-        for (const evt of histRes.value!.events) state = chatReducer(state, evt)
+        const builder = trajBuilderRef.current!
+        for (const evt of histRes.value!.events) {
+          state = chatReducer(state, evt)
+          builder.push(evt)
+        }
         setChat(state)
+        setTrajectory(builder.all())
       } else {
         setError(histRes.error?.message ?? '历史加载失败')
       }
@@ -88,6 +107,9 @@ export default function ChatView({ sessionId, onTitleChange, modelsTick, workspa
 
     const off = subscribeSession(sessionId, (evt) => {
       setChat((prev) => chatReducer(prev, evt))
+      const builder = trajBuilderRef.current!
+      builder.push(evt)
+      setTrajectory(builder.all())
       if (evt.kind === 'title') onTitleChange()
     })
     return () => {
@@ -159,6 +181,40 @@ export default function ChatView({ sessionId, onTitleChange, modelsTick, workspa
     await harness.cancelTurn(sessionId)
   }, [sessionId])
 
+  // 编辑用户消息：本地替换文本 + 重新触发（编辑后的文本作为新输入）
+  const onEditMessage = useCallback(
+    async (messageId: string, newText: string) => {
+      if (!sessionId || sending) return
+      setChat((prev) => chatReducer(prev, { kind: 'replace-user-text', sessionId, messageId, text: newText }))
+      setSending(true)
+      setError(null)
+      onTaskCreated(sessionId, newText)
+      await harness.sendMessage(sessionId, newText)
+      setSending(false)
+    },
+    [sessionId, sending, onTaskCreated],
+  )
+
+  // 重新生成：找到该 assistant 消息前最近的用户消息，重发其文本
+  const onRegenerate = useCallback(
+    async (messageId: string) => {
+      if (!sessionId || sending) return
+      const msgs = chatRef.current.messages
+      const idx = msgs.findIndex((m) => m.id === messageId)
+      if (idx === -1) return
+      const userMsg = [...msgs.slice(0, idx)].reverse().find((m) => m.role === 'user')
+      if (!userMsg) return
+      const text = userMsg.blocks.find((b) => b.type === 'text')?.text ?? ''
+      if (!text.trim()) return
+      setSending(true)
+      setError(null)
+      onTaskCreated(sessionId, text)
+      await harness.sendMessage(sessionId, text)
+      setSending(false)
+    },
+    [sessionId, sending, onTaskCreated],
+  )
+
   const onSelectModel = useCallback(
     async (provider: string, model: string) => {
       if (!sessionId) return
@@ -188,7 +244,10 @@ export default function ChatView({ sessionId, onTitleChange, modelsTick, workspa
         <div className="chat-empty-hero">
           <WhaleLogo className="chat-empty-logo" />
           <h2>开始对话</h2>
-          <p>点击下方输入框直接开始，或左侧「新会话」新建会话。</p>
+          <p className="chat-empty-brand">
+            harness desktop{appVersion ? ` v${appVersion}` : ''} · 你的 AI 工作台
+          </p>
+          <p className="chat-empty-hint">点击下方输入框直接开始，或左侧「新会话」新建会话。</p>
         </div>
         <div className="chat-empty-composer">
           <ChatInput
@@ -220,6 +279,19 @@ export default function ChatView({ sessionId, onTitleChange, modelsTick, workspa
       <header className="chat-header">
         <div className="chat-title">{chat.title || '新会话'}</div>
         <div className="chat-header-right">
+          <span className="chat-header-brand" title={`harness desktop v${appVersion || '0.1.0'}`}>
+            <WhaleLogo className="chat-header-brand-logo" />
+            <span className="chat-header-brand-text">
+              harness desktop{appVersion ? ` v${appVersion}` : ''}
+            </span>
+          </span>
+          <button
+            className={`btn small ghost ${showTrajectory ? 'active' : ''}`}
+            onClick={() => setShowTrajectory((v) => !v)}
+            title="查看 agent 执行轨迹"
+          >
+            轨迹
+          </button>
           {chat.running && (
             <button className="btn danger small" onClick={cancelTurn}>
               停止
@@ -230,7 +302,31 @@ export default function ChatView({ sessionId, onTitleChange, modelsTick, workspa
 
       {error && <div className="chat-error">{error}</div>}
 
-      <MessageList messages={chat.messages} running={chat.running} loading={loading} />
+      <div className="chat-columns">
+        <div className="chat-center">
+          <MessageList
+            messages={chat.messages}
+            running={chat.running}
+            loading={loading}
+            onEdit={onEditMessage}
+            onRegenerate={onRegenerate}
+          />
+        </div>
+
+        {showTrajectory && (
+          <div className="chat-details">
+            <div className="traj-drawer-header">
+              <span>会话轨迹</span>
+              <button className="btn small ghost" onClick={() => setShowTrajectory(false)}>
+                收起
+              </button>
+            </div>
+            <div className="traj-drawer-body">
+              <TrajectoryPanel turns={trajectory} />
+            </div>
+          </div>
+        )}
+      </div>
 
       <ChatInput
         onSend={sendMessage}

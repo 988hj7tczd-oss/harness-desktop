@@ -53,8 +53,8 @@ export default function App() {
   }, [])
 
   const onCompleteWizard = useCallback(
-    async (workspaceCwd: string) => {
-      const res = await harness.updateAppSettings({ onboarded: true, workspaceCwd })
+    async (workspaceCwd: string | null) => {
+      const res = await harness.updateAppSettings({ onboarded: true, workspaceCwd: workspaceCwd || null })
       if (res.ok) setAppSettings(res.value!)
     },
     [],
@@ -70,10 +70,24 @@ export default function App() {
     const appearance = appSettings?.appearance
     if (!appearance) return
     const root = document.documentElement
-    root.setAttribute('data-theme', appearance.theme)
+    const applyTheme = () => {
+      // system → 用 matchMedia 解析成 light/dark（CSS 只有 [data-theme=light] 与深色 :root）
+      let resolved = appearance.theme
+      if (resolved === 'system') {
+        resolved = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+      }
+      root.setAttribute('data-theme', resolved)
+    }
+    applyTheme()
     root.setAttribute('data-accent', appearance.accent)
     root.setAttribute('data-font-size', appearance.fontSize)
     root.setAttribute('data-density', appearance.density)
+    // system 模式下跟随系统主题实时切换
+    if (appearance.theme === 'system') {
+      const mq = window.matchMedia('(prefers-color-scheme: light)')
+      mq.addEventListener('change', applyTheme)
+      return () => mq.removeEventListener('change', applyTheme)
+    }
   }, [appSettings?.appearance])
 
   if (booting) {

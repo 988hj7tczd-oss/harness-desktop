@@ -42,8 +42,6 @@ export interface AppSettings {
   reviewSessionId?: string
   /** 已生成技能的聚类类型（避免重复生成）。 */
   generatedSkillTypes?: string[]
-  /** 各平台访问控制（白名单）配置：platformId → 策略与允许列表。 */
-  channelAccess?: Record<string, ChannelAccessConfig>
   /** 外观配置（011）。 */
   appearance?: AppearanceConfig
 }
@@ -64,14 +62,19 @@ export interface AppearanceConfig {
   launchMinimized: boolean
 }
 
+/** 任务类型（从标题推断，用于面板分类）。 */
+export type TaskType = 'code' | 'writing' | 'query' | 'analysis' | 'other'
+
 /** 一个任务的执行步骤（从 tool/* 事件推导）。 */
 export interface TaskStep {
   name: string
-  status: 'running' | 'done' | 'failed'
+  status: 'pending' | 'running' | 'done' | 'failed'
   at: number
+  /** 失败时的错误信息。 */
+  error?: string
 }
 
-/** 一条任务记录（用户发起的 prompt 或定时/通道触发的任务）。 */
+/** 一条任务记录（用户发起的 prompt 或定时触发的任务）。 */
 export interface TaskRecord {
   id: string
   sessionId: string
@@ -81,7 +84,9 @@ export interface TaskRecord {
   endedAt?: number
   steps: TaskStep[]
   summary?: string
-  source?: 'chat' | 'schedule' | 'channel'
+  source?: 'chat' | 'schedule'
+  /** 任务类型分类（code/writing/query/analysis/other）。 */
+  type?: TaskType
 }
 
 /** 一条凭据的状态。 */
@@ -90,14 +95,6 @@ export interface CredentialStatus {
   label: string
   configured: boolean
   source?: string
-}
-
-/** 平台访问控制配置（镜像存 AppSettings 供 UI 预填；同步写 credentials 供 gateway 校验）。 */
-export interface ChannelAccessConfig {
-  dmPolicy: 'open' | 'allowlist' | 'disabled'
-  allowedUsers: string
-  groupPolicy: 'open' | 'allowlist' | 'disabled'
-  allowedGroups: string
 }
 
 /** 定时提醒（桌面端实现：到点后以用户消息注入会话）。 */
@@ -115,6 +112,8 @@ export interface Reminder {
   weeklyDay?: number
   nextAt: number
   sessionId?: string
+  /** 触发失败顺延重试次数（上限 10 次后丢弃）。 */
+  retries?: number
 }
 
 /** 一条记忆（harness-memory 插件 memories 表）。 */
@@ -302,10 +301,37 @@ export type SessionStreamEvent =
   | { kind: 'projection'; sessionId: string; seq: number; key: string; value: unknown }
   | { kind: 'running'; sessionId: string; running: boolean }
   | {
+      /** 执行步骤结束（轨迹用）：step 号 + 结束时间 + 结果。 */
+      kind: 'step-end'
+      sessionId: string
+      seq: number
+      turn: number
+      step: number
+      time: number
+    }
+  | {
+      /** 回合结束（轨迹用）：turn 号 + 结束时间 + 结果。 */
+      kind: 'turn-end'
+      sessionId: string
+      seq: number
+      turn: number
+      time: number
+      reason?: 'completed' | 'error' | 'stopped'
+      error?: string
+      usage?: { inputTokens?: number; outputTokens?: number }
+    }
+  | {
       /** 乐观用户消息（renderer 本地，立即上屏；dsh 的 user-message 到达后去重替换）。 */
       kind: 'optimistic-user'
       sessionId: string
       id: string
+      text: string
+    }
+  | {
+      /** 编辑用户消息：本地替换文本（乐观，真实消息随后由事件流补上）。 */
+      kind: 'replace-user-text'
+      sessionId: string
+      messageId: string
       text: string
     }
 
@@ -331,6 +357,11 @@ export interface HarnessApi {
   ensureDsh(): Promise<IpcResult<DshStatus>>
   shutdownDsh(): Promise<IpcResult<void>>
   describe(): Promise<IpcResult<DshStatus>>
+
+  // ---- 021 自动更新 ----
+  checkForUpdates(): Promise<IpcResult<unknown>>
+  quitAndInstall(): Promise<IpcResult<unknown>>
+  onUpdateStatus(cb: (status: { state: string; version?: string; percent?: number; message?: string }) => void): () => void
 
   listSessions(): Promise<IpcResult<SessionSummary[]>>
   createSession(cwd?: string, agentPreset?: string): Promise<IpcResult<{ sessionId: string }>>
@@ -358,15 +389,13 @@ export interface HarnessApi {
 
   setApiKey(key: string): Promise<IpcResult<void>>
   hasApiKey(): Promise<IpcResult<boolean>>
+  testApiKey(key: string): Promise<IpcResult<{ ok: boolean; message: string }>>
   pickDirectory(): Promise<IpcResult<string | null>>
 
   // ---- Part A：设置控制台 ----
   listCredentials(): Promise<IpcResult<CredentialStatus[]>>
   setCredential(ref: string, value: string): Promise<IpcResult<void>>
   clearCredential(ref: string): Promise<IpcResult<void>>
-  describeCredentialRefs(refs: string[]): Promise<IpcResult<Record<string, boolean>>>
-  openExternal(url: string): Promise<IpcResult<void>>
-  testChannel(platformId: string, modeId: string, values: Record<string, string>): Promise<IpcResult<{ ok: boolean; message: string }>>
   listReminders(): Promise<IpcResult<Reminder[]>>
   createReminder(input: Omit<Reminder, 'id' | 'nextAt'>): Promise<IpcResult<Reminder>>
   deleteReminder(id: string): Promise<IpcResult<void>>

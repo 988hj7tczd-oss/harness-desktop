@@ -1,6 +1,0 @@
-# dsh-bot-wechat bundle patch：把企业微信 adapter 插入 web profile。
-- insert:
-    - id: dsh-bot-wechat
-      name: dsh-bot-wechat
-      config:
-        apiKeyEnv: WECHAT_BOT_WEBHOOK

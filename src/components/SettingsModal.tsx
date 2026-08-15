@@ -5,9 +5,10 @@ import CredentialsSection from './CredentialsSection'
 import RemindersSection from './RemindersSection'
 import MemorySection from './MemorySection'
 import ConsoleSection from './ConsoleSection'
-import MessageChannelsSection from './MessageChannelsSection'
 import SkillsSection from './SkillsSection'
 import AppearanceSection from './AppearanceSection'
+import UpdateSection from './UpdateSection'
+import EvolutionSection from './EvolutionSection'
 
 const harness = window.harness
 
@@ -25,7 +26,7 @@ interface Props {
   onGenerateSkill: (sessionId: string, type: string) => void
 }
 
-type NavKey = 'general' | 'models' | 'automation' | 'memory' | 'skills' | 'channels' | 'advanced'
+type NavKey = 'general' | 'models' | 'automation' | 'memory' | 'skills' | 'evolution' | 'advanced'
 
 const NAV: { key: NavKey; label: string }[] = [
   { key: 'general', label: '通用' },
@@ -33,7 +34,7 @@ const NAV: { key: NavKey; label: string }[] = [
   { key: 'automation', label: '提醒与自动化' },
   { key: 'memory', label: '记忆' },
   { key: 'skills', label: '技能' },
-  { key: 'channels', label: '消息通道' },
+  { key: 'evolution', label: '进化' },
   { key: 'advanced', label: '高级' },
 ]
 
@@ -156,7 +157,7 @@ export default function SettingsModal({
                 </div>
                 <div className="setting-row">
                   <span>切换开发者工具</span>
-                  <span className="mono">⌘⌥I / Ctrl+Shift+I</span>
+                  <span className="mono">⌘⌥I / Ctrl+Option+I</span>
                 </div>
                 <div className="setting-row">
                   <span>关闭窗口</span>
@@ -168,6 +169,8 @@ export default function SettingsModal({
                 appearance={appSettings.appearance}
                 onUpdate={onUpdateSettings}
               />
+
+              <UpdateSection />
             </>
           )}
 
@@ -213,11 +216,8 @@ export default function SettingsModal({
             />
           )}
 
-          {active === 'channels' && (
-            <MessageChannelsSection
-              appSettings={appSettings}
-              onUpdateSettings={onUpdateSettings}
-            />
+          {active === 'evolution' && (
+            <EvolutionSection appSettings={appSettings} activeSessionId={activeSessionId} />
           )}
 
           {active === 'advanced' && (

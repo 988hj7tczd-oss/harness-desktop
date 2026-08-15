@@ -1,7 +1,0 @@
-# dsh-bot-webhooks bundle patch：把 Webhooks adapter 插入 web profile。
-- insert:
-    - id: dsh-bot-webhooks
-      name: dsh-bot-webhooks
-      config:
-        portEnv: WEBHOOKS_PORT
-        tokenEnv: WEBHOOKS_TOKEN

@@ -69,6 +69,18 @@ export function chatReducer(state: ChatState, evt: SessionStreamEvent): ChatStat
         next[idx] = real
         return { ...state, messages: next }
       }
+      // 编辑重发去重：末条用户消息文本相同（编辑后重发，dsh 产生新 id）→ 替换而非新增
+      const realText = evt.message.blocks.filter((b) => b.type === 'text').map((b) => (b.type === 'text' ? b.text : '')).join('')
+      const lastUser = [...state.messages].reverse().find((m) => m.role === 'user')
+      if (lastUser) {
+        const lastText = lastUser.blocks.filter((b) => b.type === 'text').map((b) => (b.type === 'text' ? b.text : '')).join('')
+        if (lastText === realText) {
+          const idx = state.messages.findIndex((m) => m.id === lastUser.id)
+          const next = [...state.messages]
+          next[idx] = real
+          return { ...state, messages: next }
+        }
+      }
       return { ...state, messages: [...state.messages, real] }
     }
 
@@ -80,6 +92,19 @@ export function chatReducer(state: ChatState, evt: SessionStreamEvent): ChatStat
         status: 'complete',
       }
       return { ...state, messages: [...state.messages, msg] }
+    }
+
+    case 'replace-user-text': {
+      // 编辑用户消息：按 id 找到并替换文本（本地乐观更新，真实消息随后由事件流补上）
+      const idx = state.messages.findIndex((m) => m.id === evt.messageId && m.role === 'user')
+      if (idx === -1) return state
+      const next = [...state.messages]
+      const msg = next[idx]
+      next[idx] = {
+        ...msg,
+        blocks: [{ type: 'text', text: evt.text }],
+      }
+      return { ...state, messages: next }
     }
 
     case 'assistant-start': {

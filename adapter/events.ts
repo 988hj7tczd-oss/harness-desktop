@@ -99,8 +99,7 @@ export function normalizeSessionEvent(
       })
       break
     }
-    case 'turn/start':
-    case 'step/start': {
+    case 'turn/start': {
       out.push({
         kind: 'assistant-start',
         sessionId,
@@ -109,6 +108,43 @@ export function normalizeSessionEvent(
         step: Number(data.step ?? 1),
       })
       out.push({ kind: 'running', sessionId, running: true })
+      break
+    }
+    case 'step/start': {
+      out.push({
+        kind: 'assistant-start',
+        sessionId,
+        seq,
+        turn: Number(data.turn ?? 1),
+        step: Number(data.step ?? 1),
+      })
+      break
+    }
+    case 'step/end': {
+      out.push({
+        kind: 'step-end',
+        sessionId,
+        seq,
+        turn: Number(data.turn ?? 1),
+        step: Number(data.step ?? 1),
+        time: Number(evt.time ?? Date.now()),
+      })
+      break
+    }
+    case 'turn/end': {
+      const reasonRaw = (data.reason ?? {}) as { kind?: string; error?: { message?: string } }
+      out.push({
+        kind: 'turn-end',
+        sessionId,
+        seq,
+        turn: Number(data.turn ?? 1),
+        time: Number(evt.time ?? Date.now()),
+        reason: reasonRaw.kind === 'completed' ? 'completed' : reasonRaw.kind === 'error' ? 'error' : 'stopped',
+        error: reasonRaw.error?.message,
+        usage: (data.usage as { inputTokens?: number; outputTokens?: number } | undefined) ?? undefined,
+      })
+      // 回合结束 → running:false（思考完成/转圈停止的关键）
+      out.push({ kind: 'running', sessionId, running: false })
       break
     }
     case 'assistant/chunk': {
@@ -169,10 +205,6 @@ export function normalizeSessionEvent(
     case 'session/title': {
       const title = typeof data.title === 'string' ? data.title : ''
       out.push({ kind: 'title', sessionId, seq, title })
-      break
-    }
-    case 'turn/end': {
-      out.push({ kind: 'running', sessionId, running: false })
       break
     }
     default:

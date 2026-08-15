@@ -175,6 +175,7 @@ export default function MemorySection({ evolution, onUpdateSettings }: Props) {
                   <span className="memory-text">{m.text}</span>
                 )}
                 <span className="memory-meta">
+                  <span className={`memory-type-badge memory-type-${groupOf(m.tags)}`}>{g.label}</span>
                   {m.tags.map((t) => (
                     <span key={t} className="memory-tag">
                       {t}

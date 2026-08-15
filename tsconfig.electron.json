@@ -17,5 +17,6 @@
     "esModuleInterop": true,
     "types": ["node"]
   },
-  "include": ["electron", "adapter", "shared"]
+  "include": ["electron", "adapter", "shared"],
+  "exclude": ["**/__tests__/**", "**/*.test.ts"]
 }

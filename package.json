@@ -16,14 +16,18 @@
     "build:electron": "tsc -p tsconfig.electron.json",
     "start": "electron .",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.electron.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "dist": "pnpm build && electron-builder --mac --win",
     "dist:mac": "pnpm build && electron-builder --mac",
     "dist:win": "pnpm build && electron-builder --win"
   },
   "dependencies": {
     "@deepseek-ai/dsh": "0.1.0-rc.6",
+    "electron-updater": "^6.8.9",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
@@ -36,6 +40,7 @@
     "electron-builder": "^25.1.8",
     "typescript": "^5.7.2",
     "vite": "^6.0.3",
+    "vitest": "^4.1.10",
     "wait-on": "^8.0.1"
   },
   "engines": {

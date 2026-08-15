@@ -2,6 +2,12 @@ appId: com.harness.desktop
 productName: harness-desktop
 copyright: Copyright © 2026 harness-desktop
 
+# 自动更新（021）：electron-updater 读取的发布源
+publish:
+  provider: github
+  owner: 988hj7tczd-oss
+  repo: harness-desktop
+
 directories:
   output: out
   buildResources: build
@@ -11,6 +17,8 @@ files:
   - dist-electron/**/*
   - plugins/**/*
   - build/icon.png
+  - build/tray/**/*
+  - build/brand/**/*
   - package.json
 
 # 不使用 asar：dsh profile 初始化会为安装包内的依赖创建符号链接，
@@ -35,8 +43,12 @@ mac:
       arch:
         - arm64
         - x64
-  # 开发阶段不签名
-  identity: null
+  # 代码签名 + 公证（017）：签名身份从环境变量/钥匙串读取，不硬编码。
+  # 设置了 CSC_LINK（p12）或钥匙串含 Developer ID 证书时自动签名；
+  # 未设置时 electron-builder 默认跳过签名（identity 缺省）。
+  notarize:
+    # 不写死 teamId：从环境变量 APPLE_TEAM_ID / APPLE_ID 读取（见 docs/SIGNING.md）
+    teamId: ${env.APPLE_TEAM_ID}
 
 win:
   icon: build/icon.png

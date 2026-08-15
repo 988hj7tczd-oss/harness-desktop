@@ -65,8 +65,15 @@ export class DshAdapter {
     ])
     const archived = new Set(workspaceRes.archivedSessionIds ?? [])
     const { items } = sessionRes
+    // 去重：引擎可能因订阅/列表竞态返回重复 sessionId
+    const seen = new Set<string>()
     return items
-      .filter((raw) => !archived.has(String((raw as Record<string, unknown>).sessionId ?? '')))
+      .filter((raw) => {
+        const id = String((raw as Record<string, unknown>).sessionId ?? '')
+        if (!id || seen.has(id)) return false
+        seen.add(id)
+        return !archived.has(id)
+      })
       .map((raw) => {
         const s = raw as Record<string, unknown>
         // title projection 的值是字符串（或 null）；兼容旧形态 { value }
@@ -274,14 +281,6 @@ export class DshAdapter {
     await this.client.credentialsUnset({ ref })
   }
 
-  /** 查询任意 ref 是否已配置（消息通道等专用 ref 不在此前的 listCredentials 枚举内）。 */
-  async describeCredentialRefs(refs: string[]): Promise<Record<string, boolean>> {
-    const uniq = [...new Set(refs)]
-    const { credentials } = await this.client.credentialsDescribe({ refs: uniq })
-    const out: Record<string, boolean> = {}
-    for (const r of uniq) out[r] = Boolean(credentials[r]?.configured)
-    return out
-  }
 
   // ---- Part A：Web 搜索 ----
 

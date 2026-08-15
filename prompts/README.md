@@ -1,4 +1,4 @@
-# 📂 提示词管理规范
+# 提示词管理规范
 
 本项目所有**方案提示词**统一存放在本文件夹（`prompts/`），禁止散落别处。
 
@@ -32,4 +32,18 @@
 | 013-fix-bot-gateway-e2e-v1.md | done | 修复 bot-gateway 2 个致命 bug（webhooks 空token + workspace 注册）（已验收） |
 | 014-fix-agent-model-e2e-v1.md | done | 修复 bot-gateway Bug 3（agent 缺 model）+ 端到端闭环验收（已验收） |
 | 015-streaming-ui-and-webhook-reply-v1.md | done | 会话窗口流式优化 + webhook 回复回传（已验收，引擎端验证通过） |
-| 016-fix-event-subscription-race-v1.md | active | 修复事件订阅竞态（引擎就绪前 subscribe 丢失 → UI 无流式/无回复显示） |
+| 016-fix-event-subscription-race-v1.md | done | 修复事件订阅竞态（已验收，流式回复正常） |
+| 017-signing-and-tray-v1.md | done | 上线硬门槛：代码签名公证 + 托盘图标（配置+文档就绪，无证书未签名；托盘实现验证通过） |
+| 018-readme-and-wizard-v1.md | done | 上线硬门槛：README 产品视角更新 + 首启向导 4 步完善（已验收） |
+| 019-tests-and-encryption-v1.md | done | 建议项：Vitest 28 单测 + safeStorage 密钥加密（已验收） |
+| 020-qq-adapter-and-size-v1.md | done | 建议项：QQ adapter 补全（api-v2 WS + 沙箱）+ 打包体积审计与裁剪（已验收，QQ 真收发待凭证实测） |
+| 021-updater-and-archive-v1.md | done | electron-updater 自动更新 + docs 报告归档（已验收） |
+| 022-remove-channels-v1.md | done | 彻底删除消息通道（UI/插件/主进程/profile 四层，聚焦核心体验）（已验收） |
+| 023-core-experience-v1.md | done | 核心体验：聊天复制/编辑/重新生成 + 任务类型/进度 + 记忆技能可视化 + 会话轨迹（已验收） |
+| 024-fix-ui-align-official-v1.md | done | 修复重复会话/思考状态 + UI 对齐官方 web 版（气泡/轨迹 details 栏/三栏布局）（已验收） |
+| 025-fix-theme-system-v1.md | done | 修复主题 system 未解析（matchMedia 解析）+ 气泡两主题可读性（已验收） |
+| 026-fix-duplicate-messages-v1.md | done | 窗口迁移官方 Web UI（M1：loadURL/端口跟随/回退/__desktop__ 桥）；桌面元素模块化标注待契约逆向 |
+| 028-modules-and-branding-v1.md | done | F1-F4 修复 + 品牌 UI（右上角 logo/首启 hero/版本）+ __desktop__ 桥 getVersion；官方模块注入待 AMD 构建 |
+| 027-desktop-modules-m2-m4-v1.md | done | A1 桌面元素模块化：P0/P1 全修 + __desktop__ 桥；官方客户端模块注入标注待契约逆向 |
+| 030-fix-hero-brand-inject-v1.md | done | 修复 hero 品牌替换（characterData+多语言+结构匹配，CDP 实测通过） |
+| 029-amd-modules-and-branding-v1.md | done | 官方客户端模块注入：7 模块进 manifest + 品牌 header；设置分区/右上角鲸鱼 | 官方客户端模块注入（S1 最小验证 → S2 元素搬入 → S3 品牌 UI） |

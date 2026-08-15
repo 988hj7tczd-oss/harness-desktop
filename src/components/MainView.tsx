@@ -180,11 +180,13 @@ export default function MainView({
   const pinnedSessionIds = appSettings.pinnedSessionIds ?? []
   const sessionColors = appSettings.sessionColors ?? {}
   const displaySessions = useMemo(() => {
+    // 去重保险（sessionId 唯一），避免侧栏出现同一会话两行
+    const uniq = sessions.filter((s, i, arr) => arr.findIndex((x) => x.sessionId === s.sessionId) === i)
     const pinnedSet = new Set(pinnedSessionIds)
     const pinned = pinnedSessionIds
-      .map((id) => sessions.find((s) => s.sessionId === id))
+      .map((id) => uniq.find((s) => s.sessionId === id))
       .filter((s): s is SessionSummary => Boolean(s))
-    const rest = sessions.filter((s) => !pinnedSet.has(s.sessionId))
+    const rest = uniq.filter((s) => !pinnedSet.has(s.sessionId))
     return [...pinned, ...rest]
   }, [sessions, pinnedSessionIds])
 
@@ -423,7 +425,12 @@ export default function MainView({
             onSessionCreated={(id) => void activateSession(id)}
           />
         ) : (
-          <TaskPanel tasks={tasks} onRetry={retryTask} onReview={reviewTask} />
+          <TaskPanel
+            tasks={tasks}
+            onRetry={retryTask}
+            onReview={reviewTask}
+            onCancel={(sessionId) => void harness.cancelTurn(sessionId)}
+          />
         )}
       </div>
       {settingsOpen && (

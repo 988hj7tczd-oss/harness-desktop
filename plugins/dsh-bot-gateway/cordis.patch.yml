@@ -1,4 +1,0 @@
-# dsh-bot-gateway bundle patch：把网关插件插入 web profile。
-- insert:
-    - id: dsh-bot-gateway
-      name: dsh-bot-gateway
