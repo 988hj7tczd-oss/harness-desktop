@@ -5,3 +5,6 @@ out/
 .DS_Store
 *.log
 .env
+
+# 提示词文件不上传（内部工作流）
+prompts/

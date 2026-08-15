@@ -1,6 +1,6 @@
 # harness-desktop 交付报告（最新）
 
-> 状态：001-030 完成（030 修复 hero 品牌替换，CDP 实测通过）。历史报告已归档到 `docs/history/`。
+> 状态：001-030b 完成（030 收尾：安全验证 + 模块方向核对）。历史报告已归档到 `docs/history/`。
 > 本文件只保留最新进展摘要 + 版本导航。
 
 ## 版本导航
@@ -21,6 +21,7 @@
 | 028 | 本文档下方 |
 | 029 | 本文档下方 |
 | 030 | 本文档下方 |
+| 030b | 本文档下方 |
 
 ---
 
@@ -609,3 +610,45 @@
 ## 已知限制
 - hero 品牌只在**无激活会话**（首次/空态）时显示；有历史会话自动激活时 hero 不渲染（官方行为）
 - CSS Modules 类名若随官方升级变化，结构匹配需适配（文本匹配兜底仍在）
+
+---
+
+# harness-desktop 交付报告（030b 模块登记核对 + 上传前安全验证）
+
+> 状态：安全验证通过；BUNDLE_PLUGINS 方向核对完成（当前只留 harness-memory，符合后续"设置页还原官方"要求）。
+
+## 背景核对
+- 030-fix-module-registration 提示词假设 plugins/ 有 7 个 dsh-desktop-* 模块、BUNDLE_PLUGINS 缺登记
+- **但后续 owner 明确要求删除这些模块**（设置页还原成官方），plugins/ 已只留 harness-memory
+- 因此不重建 7 模块（避免违背"还原官方设置页"）；BUNDLE_PLUGINS 保持 ['harness-memory'] 与现状一致
+
+## Part A：profile-setup 核对（✅ 现状健康）
+- `installOne` 每次启动都同步 BUNDLE_PLUGINS 里的插件（覆盖旧版本，无缓存问题）
+- 当前：BUNDLE_PLUGINS=['harness-memory'] 与 plugins/ 目录、profile bundles 完全一致
+- profile node_modules 只有 harness-memory（dsh-desktop-* 已按 owner 要求移除）
+- manifest 无 dsh-desktop 模块（设置页保持官方原样）
+
+## Part B：上传前安全验证（✅ 全部 0 结果）
+- API key（sk-*16）/ GitHub token（ghp_/github_pat_）：**0 处**
+- 公网 IP（8.211.171.11 / 131.113）：**0 处**
+- AWS（AKIA）/ 私钥（BEGIN PRIVATE KEY）：**0 处**（grep 匹配到的是 CSS 类名 task-progress 等，非密钥）
+- .gitignore 含：node_modules/dist/dist-electron/out/.DS_Store/*.log/.env
+- credentials/safe-credentials 在本机 userData，不在项目仓库
+
+## 验证结果
+| 项 | 结果 |
+|---|---|
+| 安全 grep（key/token/IP） | 0 处 ✅ |
+| .gitignore | 完整 ✅ |
+| profile 一致性 | harness-memory 与 BUNDLE_PLUGINS/plugins 一致 ✅ |
+| typecheck | 零错误 |
+| test | 39 全绿 |
+| app 启动 | 正常，官方 UI 加载（Electron↔引擎 ESTABLISHED）|
+| 无 emoji | ✅ |
+
+## 改动文件
+- 无代码改动（核对确认现状正确）
+- 文档：docs/REPORT.md / prompts/README.md 状态更新
+
+## 已知限制
+- 030-fix-module-registration 假设已过时（模块被后续删除）；若未来要恢复自定义设置分区，需重新创建模块并登记 BUNDLE_PLUGINS
