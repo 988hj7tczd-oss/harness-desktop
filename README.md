@@ -3,6 +3,16 @@
 > **开箱即用的 AI 助手工作台** · The out-of-the-box desktop client for DeepSeek Harness.
 > Download, install, double-click, and chat — no terminal, no environment setup.
 
+## 截图
+
+**启动界面**
+
+![splash](assets/screenshots/splash.png)
+
+**主界面（官方 DeepSeek Harness Web UI 集成 + 品牌）**
+
+![main](assets/screenshots/main.png)
+
 ## 特性
 
 - **开箱即用**：内置 DeepSeek Harness 引擎，装完即聊；首启 4 步向导 3 分钟上手
@@ -46,6 +56,41 @@ brew install harness-desktop
 > pnpm dev
 > ```
 
+## 命令行使用
+
+**npm 一键安装 + 启动**：
+```bash
+# 安装（自动下载对应平台安装包）
+npm install -g harness-desktop
+# npm 新版默认拦截安装脚本，如需自动下载加参数：
+npm install -g --allow-scripts=harness-desktop harness-desktop
+
+# 启动安装（打开已下载的 dmg/exe/AppImage）
+harness-desktop
+
+# 检查是否已下载
+harness-desktop --check
+```
+
+**Homebrew（macOS）**：
+```bash
+brew tap 988hj7tczd-oss/harness-desktop
+brew install harness-desktop
+```
+
+**直接下载安装包**：
+```bash
+# macOS (Apple Silicon)
+curl -L -o harness-desktop.dmg "https://github.com/988hj7tczd-oss/harness-desktop/releases/download/v0.1.1/harness-desktop-0.1.0-arm64.dmg"
+# Windows
+curl -L -o harness-desktop.exe "https://github.com/988hj7tczd-oss/harness-desktop/releases/download/v0.1.1/harness-desktop.Setup.0.1.0.exe"
+# Linux
+curl -L -o harness-desktop.AppImage "https://github.com/988hj7tczd-oss/harness-desktop/releases/download/v0.1.1/harness-desktop-0.1.0.AppImage"
+chmod +x harness-desktop.AppImage && ./harness-desktop.AppImage
+```
+
+**国内加速（Gitee 镜像）**：https://gitee.com/jerryweizhihao/harness-desktop
+
 ## 开发指南
 
 ```bash
@@ -70,9 +115,9 @@ pnpm dist:win     # 仅 Windows
 
 ## 已知限制（诚实标注）
 
-- **未签名**：当前 macOS 产物未做代码签名/公证，安装时系统可能提示"无法验证开发者"；签名流程见 [docs/SIGNING.md](docs/SIGNING.md)，配证书后即可产出可公开分发版本
-- **体积**：安装包约 400-500MB（内置完整 dsh 引擎 + Electron 框架）；体积审计见 [docs/SIZE.md](docs/SIZE.md)
-- **Windows**：安装包已产出但未在 Windows 实机验证（当前开发机为 macOS）
+- **未签名**：当前 macOS/Windows 产物未做代码签名/公证，安装时系统可能提示"无法验证开发者"；签名流程见 [docs/SIGNING.md](docs/SIGNING.md)，配证书后即可产出可公开分发版本
+- **体积**：安装包约 130-230MB（内置完整 dsh 引擎 + Electron 框架）
+- **三平台**：macOS / Windows / Linux 均已在各自原生环境构建（GitHub Actions 矩阵），Windows 已实机验证可用
 - **dsh 引擎**：处于 rc 预览期，本项目锁定 `0.1.0-rc.6`
 
 ## License
