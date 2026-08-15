@@ -303,6 +303,23 @@ select.input {
   font-size: 12px;
 }
 
+.topics-row {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.topic-tag {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  background: var(--dsw-bg-layer-3, rgba(255, 255, 255, 0.06));
+  color: var(--dsw-label-secondary, rgba(255, 255, 255, 0.65));
+  border: 1px solid var(--dsw-border-default, rgba(255, 255, 255, 0.1));
+  white-space: nowrap;
+}
+
 .hint {
   color: var(--dsw-label-caption);
   font-size: 12px;

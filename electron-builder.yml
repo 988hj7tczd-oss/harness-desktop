@@ -63,6 +63,18 @@ nsis:
   perMachine: false
   shortcutName: harness-desktop
 
+linux:
+  icon: build/icon.png
+  category: Development
+  target:
+    - target: AppImage
+      arch:
+        - x64
+    - target: deb
+      arch:
+        - x64
+  maintainer: harness-desktop <zhuanz@users.noreply.github.com>
+
 dmg:
   title: harness-desktop
 
