@@ -15,9 +15,28 @@
 
 ## 快速开始
 
-- **下载**：从 GitHub Release 下载安装包（macOS dmg / Windows exe）
-- **首启**：运行 → 4 步向导（欢迎 → 配置 API Key → 选择工作区 → 完成）→ 开始对话
-- **API Key**：前往 [platform.deepseek.com](https://platform.deepseek.com/api_keys) 获取（示例中所有密钥均为占位符 `YOUR_API_KEY`）
+### 安装（三平台）
+
+**macOS / Windows / Linux 安装包**：[GitHub Releases](https://github.com/988hj7tczd-oss/harness-desktop/releases) 下载对应平台安装包（dmg / exe / AppImage / deb）
+
+**npm 一键安装**（自动下载对应平台安装包）：
+```bash
+npm install -g harness-desktop
+harness-desktop        # 启动安装
+```
+
+**Homebrew**（macOS）：
+```bash
+brew tap 988hj7tczd-oss/harness-desktop
+brew install harness-desktop
+```
+
+**国内加速（Gitee 镜像）**：https://gitee.com/jerryweizhihao/harness-desktop
+
+### 首启
+运行 → 4 步向导（欢迎 → 配置 API Key → 选择工作区 → 完成）→ 开始对话
+
+**API Key**：前往 [platform.deepseek.com](https://platform.deepseek.com/api_keys) 获取（示例中所有密钥均为占位符 `YOUR_API_KEY`）
 
 > 未提供安装包时可用开发模式运行：
 > ```bash
