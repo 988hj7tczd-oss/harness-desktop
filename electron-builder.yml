@@ -37,7 +37,7 @@ asarUnpack:
 
 mac:
   category: public.app-category.developer-tools
-  icon: build/icon.png
+  icon: build/icon.icns
   target:
     - target: dmg
       arch:
