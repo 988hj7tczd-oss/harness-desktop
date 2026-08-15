@@ -1,0 +1,88 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            arch: mac
+            artifact: dmg
+          - os: windows-latest
+            arch: win
+            artifact: exe
+          - os: ubuntu-latest
+            arch: linux
+            artifact: AppImage
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.21.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      # 关键：在每个平台的原生 runner 上打包。
+      # pnpm install 会装对应平台的原生模块（koffi-win32-x64 / koffi-linux-x64 / koffi-darwin-arm64），
+      # 彻底避免 mac 交叉编译 win/linux 时缺平台二进制的问题（031 修复的 dsh 启动超时根因）。
+      - name: Package (${{ matrix.arch }})
+        run: npx electron-builder --${{ matrix.arch }} --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          # mac 未签名（无 Apple 证书）
+          APPLE_TEAM_ID: ''
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: harness-desktop-${{ matrix.arch }}
+          path: |
+            out/*.dmg
+            out/*.exe
+            out/*.AppImage
+            out/*.deb
+            out/*.zip
+          if-no-files-found: warn
+
+  release:
+    name: Publish Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist-assets
+          merge-multiple: true
+
+      - name: Show artifacts
+        run: ls -lh dist-assets/
+
+      - name: Create/Update Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist-assets/**
+          generate_release_notes: true
