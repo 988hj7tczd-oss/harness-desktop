@@ -95,6 +95,12 @@ macOS signing & notarization: [docs/SIGNING.md](docs/SIGNING.md)
 - **Frontend**: React 18 + TypeScript + Vite (hand-written CSS + `--dsw-*` tokens, no heavy UI libs)
 - **Isolation layer**: `adapter/` encapsulates the dsh API — upstream changes only touch the adapter, the renderer never sees raw dsh fields
 
+## DSH Ecosystem
+
+- 📦 [awesome-dsh-plugin](https://github.com/988hj7tczd-oss/awesome-dsh-plugin) — curated list of DeepSeek Harness plugins (this project is featured under "Desktop Clients")
+- 🖱️ [dsh-computer-use](https://github.com/988hj7tczd-oss/dsh-computer-use) — Computer Use plugin: gives harness-desktop human-like virtual mouse control
+- 🌐 Website: [aibunkhouse.com](https://aibunkhouse.com) · Tools: [aibunkhouse.com/tools](https://aibunkhouse.com/tools)
+
 ## Known Limitations
 
 - **Unsigned**: current builds are not code-signed/notarized — installers may show "unidentified developer" warnings; see [docs/SIGNING.md](docs/SIGNING.md)
