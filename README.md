@@ -113,6 +113,12 @@ pnpm dist:win     # 仅 Windows
 - **前端**：React 18 + TypeScript + Vite（手写 CSS + `--dsw-*` token，无重型 UI 库）
 - **隔离层**：`adapter/` 独立封装 dsh API，上游变更只改 adapter，renderer 永不见 dsh 原始字段
 
+## DSH 生态
+
+- 📦 [awesome-dsh-plugin](https://github.com/988hj7tczd-oss/awesome-dsh-plugin) — DeepSeek Harness 插件精选列表（本项目已收录于 Desktop Clients 板块）
+- 🖱️ [dsh-computer-use](https://github.com/988hj7tczd-oss/dsh-computer-use) — Computer Use 插件：给 harness-desktop 增加"虚拟鼠标真人操作"能力
+- 🌐 独立站：[aibunkhouse.com](https://aibunkhouse.com) · 工具页：[aibunkhouse.com/tools](https://aibunkhouse.com/tools)
+
 ## 已知限制（诚实标注）
 
 - **未签名**：当前 macOS/Windows 产物未做代码签名/公证，安装时系统可能提示"无法验证开发者"；签名流程见 [docs/SIGNING.md](docs/SIGNING.md)，配证书后即可产出可公开分发版本
