@@ -1,9 +1,15 @@
-# harness-desktop — Out-of-the-box desktop client for DeepSeek Harness
+# harness-desktop — Colorful desktop client for DeepSeek Harness
 
 > **Download, install, double-click, and chat** — no terminal, no environment setup.
 > The official DeepSeek Harness Web UI, wrapped in a native desktop shell for macOS, Windows, and Linux.
 
 [中文 README](README.md)
+
+## Colorful appearance · make it yours
+
+Paint this workbench your way: **dark / light / follow-system** themes × **DeepSeek blue / green / purple / orange** accent colors, plus **font size** and **message density** — all applied live and persisted across restarts, so every day of Harness gets its own look.
+
+![splash](assets/screenshots/splash.png)
 
 ## Screenshots
 
@@ -23,7 +29,7 @@
 - **Task panel**: task tracking / auto-review / failure retry
 - **Agent evolution**: memory auto-persists (preferences / project conventions / success patterns) + skills auto-distilled from repeated tasks
 - **Security**: strict CSP / single-instance lock / attachment limits / safeStorage-encrypted credentials
-- **Appearance**: dark / light / follow-system themes, accent color / font / density
+- **Appearance (colorful & customizable)**: dark / light / follow-system themes × DeepSeek blue / green / purple / orange accents, font size / message density, applied live
 - **System tray**: minimize to tray and keep running in background
 - **3 platforms, native builds**: GitHub Actions matrix builds each platform on its own native runner
 

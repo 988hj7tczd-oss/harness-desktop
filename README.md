@@ -1,7 +1,13 @@
-# harness-desktop — DeepSeek Harness 桌面端（开箱即用版）
+# harness-desktop — DeepSeek Harness 彩色桌面端（开箱即用版）
 
 > **开箱即用的 AI 助手工作台** · The out-of-the-box desktop client for DeepSeek Harness.
 > Download, install, double-click, and chat — no terminal, no environment setup.
+
+## 彩色外观 · 随你配色
+
+把这台工作台调成你的颜色：**深色 / 浅色 / 跟随系统**三种主题，**DeepSeek 蓝 / 绿 / 紫 / 橙**四种主题色，再加上**字体大小**与**消息密度**——全部即时生效、重启保留，让每一天的 Harness 都换个心情。
+
+![splash](assets/screenshots/splash.png)
 
 ## 截图
 
@@ -20,7 +26,7 @@
 - **任务面板**：任务追踪 / 自动复盘 / 失败重试，一条消息一个任务
 - **Agent 进化**：记忆自动沉淀（偏好/项目约定/成功做法）+ 同类任务自动提炼技能
 - **安全**：严格 CSP / 单实例锁 / 附件限制 / safeStorage 密钥加密
-- **外观**：深色 / 浅色 / 跟随系统主题，主题色 / 字体 / 密度可调
+- **外观（彩色可定制）**：深色 / 浅色 / 跟随系统主题 × DeepSeek 蓝 / 绿 / 紫 / 橙四种主题色，字体 / 消息密度可调，即时生效
 - **托盘常驻**：关闭最小化到托盘，后台持续运行
 
 ## 快速开始
