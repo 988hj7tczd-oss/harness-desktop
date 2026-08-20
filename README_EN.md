@@ -96,7 +96,7 @@ macOS signing & notarization: [docs/SIGNING.md](docs/SIGNING.md)
 
 ## Tech Stack
 
-- **Engine**: DeepSeek Harness `@deepseek-ai/dsh@0.1.0-rc.6` (pinned)
+- **Engine**: DeepSeek Harness `@deepseek-ai/dsh@0.1.0-rc.7` (tracks official latest)
 - **Shell**: Electron 43 + electron-builder
 - **Frontend**: React 18 + TypeScript + Vite (hand-written CSS + `--dsw-*` tokens, no heavy UI libs)
 - **Isolation layer**: `adapter/` encapsulates the dsh API — upstream changes only touch the adapter, the renderer never sees raw dsh fields
@@ -112,7 +112,7 @@ macOS signing & notarization: [docs/SIGNING.md](docs/SIGNING.md)
 - **Unsigned**: current builds are not code-signed/notarized — installers may show "unidentified developer" warnings; see [docs/SIGNING.md](docs/SIGNING.md)
 - **Size**: installers ~130-230MB (bundled dsh engine + Electron)
 - **3 platforms**: macOS / Windows / Linux built natively via GitHub Actions matrix; Windows verified on real hardware
-- **dsh engine**: preview (rc), pinned to `0.1.0-rc.6`
+- **dsh engine**: preview (rc), tracks official latest `0.1.0-rc.7`
 
 ## License
 

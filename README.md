@@ -114,7 +114,7 @@ pnpm dist:win     # 仅 Windows
 
 ## 技术栈
 
-- **引擎**：DeepSeek Harness `@deepseek-ai/dsh@0.1.0-rc.6`（锁版本，不随最新变动）
+- **引擎**：DeepSeek Harness `@deepseek-ai/dsh@0.1.0-rc.7`（跟踪官方 latest，同步官方功能）
 - **桌面壳**：Electron 43 + electron-builder
 - **前端**：React 18 + TypeScript + Vite（手写 CSS + `--dsw-*` token，无重型 UI 库）
 - **隔离层**：`adapter/` 独立封装 dsh API，上游变更只改 adapter，renderer 永不见 dsh 原始字段
@@ -130,7 +130,7 @@ pnpm dist:win     # 仅 Windows
 - **未签名**：当前 macOS/Windows 产物未做代码签名/公证，安装时系统可能提示"无法验证开发者"；签名流程见 [docs/SIGNING.md](docs/SIGNING.md)，配证书后即可产出可公开分发版本
 - **体积**：安装包约 130-230MB（内置完整 dsh 引擎 + Electron 框架）
 - **三平台**：macOS / Windows / Linux 均已在各自原生环境构建（GitHub Actions 矩阵），Windows 已实机验证可用
-- **dsh 引擎**：处于 rc 预览期，本项目锁定 `0.1.0-rc.6`
+- **dsh 引擎**：处于 rc 预览期，本项目跟踪官方 latest `0.1.0-rc.7`
 
 ## License
 
